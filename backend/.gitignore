@@ -1,0 +1,45 @@
+# Gradle이 생성하는 모든 **빌드 결과물(.class 파일, .jar 파일)**이 제외됩니다.
+# 단, Gradle 자체를 실행하는 데 필요한 gradle-wrapper.jar 파일은 예외(!)로 지정되어 있어 팀원 간의 버전 통일성이 유지됩니다.
+HELP.md
+.gradle
+build/
+!gradle/wrapper/gradle-wrapper.jar
+!**/src/main/**/build/
+!**/src/test/**/build/
+
+### STS ###
+.apt_generated
+.classpath
+.factorypath
+.project
+.settings
+.springBeans
+.sts4-cache
+bin/
+!**/src/main/**/bin/
+!**/src/test/**/bin/
+
+### IntelliJ IDEA ###
+# IntelliJ IDEA의 개인 설정, 프로젝트 메타데이터, 컴파일된 출력 파일이 완벽하게 제외됩니다.
+# 팀원마다 다른 IDE 설정을 공유하지 않게 해줍니다.
+.idea
+*.iws
+*.iml
+*.ipr
+out/
+!**/src/main/**/out/
+!**/src/test/**/out/
+
+### NetBeans ###
+/nbproject/private/
+/nbbuild/
+/dist/
+/nbdist/
+/.nb-gradle/
+
+### VS Code ###
+.vscode/
+
+# 민감 정보 및 로컬 환경 변수 파일
+application-local.properties
+application-local.yml
