@@ -5,8 +5,10 @@ import com.react.tutorial.service.CustomUserDetailsService;
 import com.react.tutorial.service.JwtTokenProvider;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
@@ -18,6 +20,7 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 
 @Configuration
 @EnableWebSecurity
+@EnableMethodSecurity
 public class SecurityConfig {
 
     private final JwtAccessDeniedHandler jwtAccessDeniedHandler;
@@ -65,6 +68,11 @@ public class SecurityConfig {
                 // 요청 권한 설정
                 .authorizeHttpRequests(authorize -> authorize
                         .requestMatchers("/api/auth/**", "/public/**", "/h2-console/**").permitAll()
+                        // GET 요청: /api/products (목록), /api/products/{id} (상세) 허용
+                        .requestMatchers(HttpMethod.GET, "/api/products", "/api/products/*").permitAll()
+
+                        // 기존 인증/회원가입 경로 허용
+                        .requestMatchers("/api/auth/**").permitAll()
                         .anyRequest().authenticated()
                 )
 
