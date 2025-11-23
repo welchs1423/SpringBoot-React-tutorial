@@ -1,21 +1,21 @@
-// frontend/src/App.jsx (새로운 코드)
-
 import React, { useState, useEffect } from 'react';
-import AuthManager from './AuthManager'; // ⭐️ AuthManager 컴포넌트 import
+import CartList from './CartList';
+import AuthManager from './AuthManager';
 import './App.css';
 
+const API_BASE_URL = ''; // 프록시 설정을 위해 비워둠
+
 // ----------------------------------------------------------------------
-// ⭐️ 상품 등록 폼 컴포넌트 (관리자 전용) - 토큰과 ROLE을 받도록 수정
+// 📦 ProductForm 컴포넌트 (상품 등록/관리자 전용)
 // ----------------------------------------------------------------------
 const ProductForm = ({ onProductCreated, currentToken, currentRole }) => {
-    // 상품 등록 폼 상태 로직 (이전과 동일)
     const [formData, setFormData] = useState({
         name: '', price: 0, stockQuantity: 0, description: '',
     });
     const [submitError, setSubmitError] = useState(null);
     const [submitSuccess, setSubmitSuccess] = useState(false);
 
-    // 상품 등록 권한이 있는지 체크
+    // 상품 등록 권한 체크
     const hasAdminRole = currentRole === 'ROLE_ADMIN';
 
     const handleChange = (e) => {
@@ -37,11 +37,11 @@ const ProductForm = ({ onProductCreated, currentToken, currentRole }) => {
         }
 
         try {
-            const response = await fetch('/api/products', {
+            const response = await fetch(`${API_BASE_URL}/api/products`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${currentToken}`, // ⭐️ 현재 로그인된 토큰 사용
+                    'Authorization': `Bearer ${currentToken}`,
                 },
                 body: JSON.stringify(formData),
             });
@@ -53,7 +53,8 @@ const ProductForm = ({ onProductCreated, currentToken, currentRole }) => {
                 throw new Error("403 Forbidden: 권한이 없습니다. 관리자(ROLE_ADMIN) 토큰인지 확인하세요.");
             }
             if (!response.ok) {
-                throw new Error(`상품 등록 실패: ${response.status} (알 수 없는 오류)`);
+                const errorData = await response.json();
+                throw new Error(`상품 등록 실패: ${errorData.message || response.status}`);
             }
 
             const newProduct = await response.json();
@@ -98,22 +99,22 @@ const ProductForm = ({ onProductCreated, currentToken, currentRole }) => {
 
 
 // ----------------------------------------------------------------------
-// ⭐️ 메인 App 컴포넌트
+// 🛒 메인 App 컴포넌트
 // ----------------------------------------------------------------------
 function App() {
     const [products, setProducts] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
-
-    // ⭐️⭐️ 인증 상태를 App 컴포넌트에서 관리 ⭐️⭐️
     const [userToken, setUserToken] = useState(null);
     const [userRole, setUserRole] = useState(null);
+    const [cartMessage, setCartMessage] = useState(null); // 장바구니 메시지 상태
+    const [cartUpdateFlag, setCartUpdateFlag] = useState(0);    // 장바구니 업데이트 플래그
 
-    // 상품 목록을 가져오는 함수 (변동 없음)
-    const fetchProducts = async () => { /* ... 생략 ... */
+    // 상품 목록을 가져오는 함수
+    const fetchProducts = async () => {
         setLoading(true);
         try {
-            const response = await fetch('/api/products');
+            const response = await fetch(`${API_BASE_URL}/api/products`);
             if (!response.ok) {
                 throw new Error(`상품 목록 로드 실패: ${response.status}`);
             }
@@ -128,23 +129,79 @@ function App() {
         }
     };
 
+    // ⭐️ 장바구니에 상품을 추가하는 함수 ⭐️
+    const handleAddToCart = async (productId) => {
+        setCartMessage(null);
+
+        if (!userToken) {
+            setCartMessage({ type: 'error', text: '❌ 장바구니에 담으려면 로그인이 필요합니다.' });
+            // 3초 후 메시지 제거를 위해 return 전에 setTimeout 호출
+            setTimeout(() => setCartMessage(null), 3000);
+            return;
+        }
+
+        try {
+            const response = await fetch(`${API_BASE_URL}/api/cart`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${userToken}`,
+                },
+                body: JSON.stringify({ productId: productId, quantity: 1 }),
+            });
+
+            if (response.ok) {
+
+                // 204 No Content 인 경우
+                if(response.status === 204 || response.headers.get('Content-Length') === '0'){
+                    console.log("장바구니 추가 성공 (본문 없음)");
+
+                    setCartUpdateFlag(prev => prev + 1);
+
+                    setCartMessage({
+                       type: 'success',
+                       text: ` 상품 ID ${productId}를 장바구니에 담았습니다!`
+                    });
+
+                    setTimeout(() => setCartMessage(null), 3000);
+                    return;
+                }
+
+                const result = await response.json();
+
+                setCartMessage({
+                    type: 'success',
+                    text: `✅ ${data.productName} (ID: ${productId}) 상품을 장바구니에 담았습니다! (총 ${data.quantity}개)`
+                });
+            } else if (response.status === 401 || response.status === 403) {
+                setCartMessage({ type: 'error', text: '❌ 인증 오류: 로그인 상태를 확인해주세요.' });
+            } else {
+                const errorData = await response.json();
+                throw new Error(data.message || `장바구니 추가 실패: ${response.status}`);
+            }
+        } catch (error) {
+            setCartMessage({ type: 'error', text: `❌ 오류 발생: ${error.message}` });
+        }
+
+        // 성공/실패와 관계없이 3초 후 메시지 제거
+        setTimeout(() => setCartMessage(null), 3000);
+    };
+
+
     useEffect(() => {
         fetchProducts();
     }, []);
 
-    // 로그인 성공 시 AuthManager에서 호출
     const handleLoginSuccess = (token, role) => {
         setUserToken(token);
         setUserRole(role);
     };
 
-    // 로그아웃 시 AuthManager에서 호출
     const handleLogout = () => {
         setUserToken(null);
         setUserRole(null);
     };
 
-    // 상품 등록 성공 시 목록 업데이트
     const handleProductCreated = (newProduct) => {
         setProducts(prev => [...prev, newProduct]);
     };
@@ -155,13 +212,13 @@ function App() {
         <div className="container" style={{ maxWidth: '800px', margin: '0 auto', padding: '20px' }}>
             <h1>🛍️ 쇼핑몰 상품 관리 및 목록</h1>
 
-            {/* ⭐️ 1. 인증 관리 컴포넌트 */}
+            {/* 1. 인증 관리 컴포넌트 */}
             <AuthManager
                 onLoginSuccess={handleLoginSuccess}
                 onLogout={handleLogout}
             />
 
-            {/* ⭐️ 2. 상품 등록 폼 (로그인 & 관리자 권한 시 표시) */}
+            {/* 2. 상품 등록 폼 (로그인 & 관리자 권한 시 표시) */}
             <ProductForm
                 onProductCreated={handleProductCreated}
                 currentToken={userToken}
@@ -170,9 +227,17 @@ function App() {
 
             {/* 3. 상품 목록 영역 */}
             <hr style={{ margin: '30px 0' }}/>
+
+            <h2> 내 장바구니 목록</h2>
+            <CartList
+                userToken={userToken}
+                isLoggedIn={!!userToken}
+                cartUpdateFlag={cartUpdateFlag}
+            />
+            <hr style={{ margin: '30px 0' }}/>
+
             <h3>📝 등록된 상품 목록</h3>
 
-            {/* ... 상품 목록 조회 로직 (기존과 동일) ... */}
             {loading && <p>상품 목록을 불러오는 중입니다...</p>}
             {error && <p style={{ color: 'red', fontWeight: 'bold' }}>{error}</p>}
 
@@ -186,10 +251,35 @@ function App() {
                         <h4>{product.name} (ID: {product.id})</h4>
                         <p><strong>가격:</strong> {product.price.toLocaleString()} 원</p>
                         <p><strong>재고:</strong> {product.stockQuantity}개</p>
-                        <p style={{ fontSize: '0.9em', color: '#666' }}>{product.description}</p>
+                        <p style={{ fontSize: '0.9em', color: '#666', marginBottom: '10px' }}>{product.description}</p>
+
+                        {/* ⭐️ 장바구니 추가 버튼 (로그인했을 때만 표시) ⭐️ */}
+                        {userToken && (
+                            <button onClick={() => handleAddToCart(product.id)}>
+                                🛒 장바구니에 담기
+                            </button>
+                        )}
+                        {/* 비로그인 시 표시 */}
+                        {!userToken && (
+                            <p style={{ fontSize: '0.9em', color: '#999' }}>장바구니는 로그인 후 이용 가능합니다.</p>
+                        )}
                     </div>
                 ))}
             </div>
+
+            {/* ⭐️ 4. 장바구니 메시지 표시 영역 ⭐️ */}
+            {cartMessage && (
+                <div style={{
+                    marginTop: '20px',
+                    padding: '10px',
+                    borderRadius: '4px',
+                    color: cartMessage.type === 'error' ? 'white' : 'green', // 에러는 흰색 텍스트
+                    backgroundColor: cartMessage.type === 'error' ? 'red' : '#e6ffe6', // 에러는 빨간색 배경
+                    border: `1px solid ${cartMessage.type === 'error' ? 'red' : 'green'}`
+                }}>
+                    {cartMessage.text}
+                </div>
+            )}
         </div>
     );
 }
