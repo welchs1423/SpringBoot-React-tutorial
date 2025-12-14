@@ -6,7 +6,7 @@ const API_BASE_URL = 'http://localhost:8080';
 // ⭐️ getToken 함수는 로그인 상태에서 JWT 토큰을 반환한다고 가정합니다. ⭐️
 const getToken = () => localStorage.getItem('token');
 
-const CartList = () => {
+const CartList = (props) => {
     const [cartItems, setCartItems] = useState([]);
     const [loading, setLoading] = useState(true);
     const [totalPrice, setTotalPrice] = useState(0);
