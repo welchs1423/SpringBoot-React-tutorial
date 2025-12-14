@@ -7,16 +7,25 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
+import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
+import org.springframework.security.config.annotation.web.configurers.CorsConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+
+import java.util.Arrays;
 
 @Configuration
 @EnableWebSecurity
@@ -27,9 +36,11 @@ public class SecurityConfig {
     private final DebugFilter debugFilter;
 
     // ⭐ 1. 필드 주입 대신 생성자 주입 사용
-    public SecurityConfig(JwtAccessDeniedHandler jwtAccessDeniedHandler, DebugFilter debugFilter) {
+    public SecurityConfig(JwtAccessDeniedHandler jwtAccessDeniedHandler,
+                          DebugFilter debugFilter) {
         this.jwtAccessDeniedHandler = jwtAccessDeniedHandler;
         this.debugFilter = debugFilter;
+
 
         // Context 전략 설정 (Context 유실 문제 해결책)
         SecurityContextHolder.setStrategyName(SecurityContextHolder.MODE_INHERITABLETHREADLOCAL);
@@ -43,10 +54,17 @@ public class SecurityConfig {
     // 2. JwtAuthenticationFilter Bean 등록
     @Bean
     public JwtAuthenticationFilter jwtAuthenticationFilter(
-            JwtTokenProvider jwtTokenProvider,
-            CustomUserDetailsService customUserDetailsService
+            JwtTokenProvider jwtTokenProvider
     ) {
-        return new JwtAuthenticationFilter(jwtTokenProvider, customUserDetailsService);
+        JwtAuthenticationFilter filter = new JwtAuthenticationFilter(jwtTokenProvider);
+
+        filter.setPermittedUrls(Arrays.asList(
+            "/api/auth/login",
+            "/api/auth/register",
+            "/api/products"
+        ));
+
+        return filter;
     }
 
     @Bean
@@ -59,20 +77,18 @@ public class SecurityConfig {
                                                    JwtAuthenticationFilter jwtAuthenticationFilter,
                                                    JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint) throws Exception{
         http
-                .cors(cors -> cors.disable())
-                .csrf(csrf -> csrf.disable()) // /api/auth/** ignoring은 disable()에 포함됩니다.
+                .cors(Customizer.withDefaults())
+                .csrf(AbstractHttpConfigurer::disable)
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .httpBasic(httpBasic -> httpBasic.disable())
                 .formLogin(formLogin -> formLogin.disable())
 
                 // 요청 권한 설정
                 .authorizeHttpRequests(authorize -> authorize
-                        .requestMatchers("/api/auth/**", "/public/**", "/h2-console/**").permitAll()
-                        // GET 요청: /api/products (목록), /api/products/{id} (상세) 허용
+                        .requestMatchers(HttpMethod.POST, "/api/auth/**").permitAll() // POST 회원가입/로그인 명시적 허용
+                        .requestMatchers(HttpMethod.GET, "/api/auth/**", "/public/**", "/h2-console/**").permitAll() // GET 요청 허용
                         .requestMatchers(HttpMethod.GET, "/api/products", "/api/products/*").permitAll()
 
-                        // 기존 인증/회원가입 경로 허용
-                        .requestMatchers("/api/auth/**").permitAll()
                         .anyRequest().authenticated()
                 )
 
@@ -81,11 +97,6 @@ public class SecurityConfig {
                         .authenticationEntryPoint(jwtAuthenticationEntryPoint) // 401 인증 실패
                         .accessDeniedHandler(jwtAccessDeniedHandler)         // 403 인가 실패
                 );
-        http.securityContext(securityContext ->
-                securityContext.requireExplicitSave(false) // 명시적 저장이 필요하지 않도록 설정
-                        .securityContextRepository(new NullSecurityContextRepository())); // Context 저장소를 비활성화
-
-        http.securityContext((securityContext) -> securityContext.disable());
 
         http.addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
         http.addFilterAfter(debugFilter, JwtAuthenticationFilter.class);
@@ -96,5 +107,28 @@ public class SecurityConfig {
     @Bean
     public AuthenticationManager authenticationManager(AuthenticationConfiguration authenticationConfiguration) throws Exception {
         return authenticationConfiguration.getAuthenticationManager();
+    }
+
+    @Bean
+    public CorsConfigurationSource corsConfigurationSource(){
+        CorsConfiguration configuration = new CorsConfiguration();
+
+        configuration.setAllowedOrigins(Arrays.asList("http://localhost:5173","http://127.0.0.1:5173"));
+        configuration.setAllowedMethods(Arrays.asList("GET","POST","DELETE","OPTIONS","PUT"));
+        configuration.setAllowedHeaders(Arrays.asList("*"));
+        configuration.setAllowCredentials(true);
+
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/**",configuration);  // 모든 경로에 적용
+        return source;
+    }
+
+    @Bean
+    public DaoAuthenticationProvider authenticationProvider(CustomUserDetailsService customUserDetailsService, PasswordEncoder passwordEncoder){
+        DaoAuthenticationProvider provider = new DaoAuthenticationProvider();
+
+        provider.setUserDetailsService(customUserDetailsService);
+        provider.setPasswordEncoder(passwordEncoder);
+        return provider;
     }
 }

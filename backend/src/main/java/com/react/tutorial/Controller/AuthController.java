@@ -4,11 +4,14 @@ import com.react.tutorial.dto.LoginRequest;
 import com.react.tutorial.dto.RegisterRequest;
 import com.react.tutorial.dto.TokenResponse;
 import com.react.tutorial.service.AuthService;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/auth")
@@ -36,11 +39,18 @@ public class AuthController {
      * 성공 시 201 Created를 반환합니다.
      */
     @PostMapping("/register")
-    public ResponseEntity<Void> register(@RequestBody RegisterRequest registerRequest) {
+    public ResponseEntity<?> register(@RequestBody RegisterRequest registerRequest) {
         // 💡 AuthService에 구현할 회원가입 비즈니스 로직 호출
-        authService.registerNewUser(registerRequest);
+        try{
+            authService.registerNewUser(registerRequest);
 
-        // 201 Created 상태 코드와 함께 응답 본문 없이 반환
-        return ResponseEntity.created(null).build();
+            return ResponseEntity.status(HttpStatus.CREATED).build();
+        } catch (IllegalArgumentException e){
+            Map<String, String> error = Map.of("message", e.getMessage());
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(error);  //409 conflict
+        } catch (Exception e){
+            Map<String, String> error = Map.of("message", "서버 처리 중 예상치 못한 오류가 발생했습니다.");
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
+        }
     }
 }

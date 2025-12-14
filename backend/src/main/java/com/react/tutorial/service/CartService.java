@@ -63,10 +63,10 @@ public class CartService {
 
         return items.stream()
                 .map(item -> CartItemDTO.builder()
-                        .cartItemId(item.getId())
+                        .id(item.getId())
                         .productId(item.getProduct().getId())
                         .productName(item.getProduct().getName())
-                        .price(item.getProduct().getPrice())
+                        .productPrice(item.getProduct().getPrice())
                         .quantity(item.getQuantity())
                         .build())
                 .collect(Collectors.toList());

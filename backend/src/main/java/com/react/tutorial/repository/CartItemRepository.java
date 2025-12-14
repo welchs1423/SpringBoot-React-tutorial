@@ -4,7 +4,7 @@ package com.react.tutorial.repository;
 
 import com.react.tutorial.entity.CartItem;
 import com.react.tutorial.entity.Product;
-import com.react.tutorial.entity.User; // ⭐️ User 엔티티 import ⭐️
+import com.react.tutorial.entity.User;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;

@@ -39,6 +39,16 @@ public class User implements UserDetails {
     // --- UserDetails 인터페이스 구현 시작 ---
 
     @Override
+    public String getPassword(){
+        return password;
+    }
+
+    @Override
+    public String getUsername(){
+        return username;
+    }
+
+    @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
         // SimpleGrantedAuthority로 권한을 리스트 형태로 반환합니다.
         return List.of(new SimpleGrantedAuthority(role));

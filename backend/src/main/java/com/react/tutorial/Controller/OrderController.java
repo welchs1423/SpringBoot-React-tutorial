@@ -1,0 +1,54 @@
+package com.react.tutorial.Controller;
+
+import com.react.tutorial.dto.OrderRequest;
+import com.react.tutorial.entity.Order;
+import com.react.tutorial.entity.User;
+import com.react.tutorial.repository.UserRepository;
+import com.react.tutorial.service.OrderService;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+import java.awt.desktop.UserSessionEvent;
+
+@RestController
+@RequestMapping("/api/orders")
+@RequiredArgsConstructor
+public class OrderController {
+
+    private final OrderService orderService;
+    private final UserRepository userRepository;
+
+    /**
+     * 장바구니 상품을 기반으로 주문을 생성합니다.
+     * @param userDetails JWT 토큰에서 추출된 사용자 정보
+     * @param request 주문 요청 DTO (배송지 정보, 결제 수단 포함)
+     * @return 생성된 주문 정보
+     */
+    @PostMapping
+    public ResponseEntity<?> createOrder(
+            @AuthenticationPrincipal UserDetails userDetails,
+            @RequestBody OrderRequest request){
+
+        User user = userRepository.findByUsername(userDetails.getUsername())
+                .orElseThrow(() -> new IllegalArgumentException("인증된 사용자를 찾을 수 없습니다."));
+
+        try{
+            Order savedOrder = orderService.createOrder(user, request);
+
+            return ResponseEntity.status(HttpStatus.CREATED).body(savedOrder);
+        } catch (IllegalArgumentException e){
+            return ResponseEntity.badRequest().body(e.getMessage());
+        } catch(IllegalStateException e){
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(e.getMessage());
+        } catch(Exception e){
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("주문 생성 중 예상치 못한 오류 발생: " + e.getMessage());
+        }
+    }
+}
