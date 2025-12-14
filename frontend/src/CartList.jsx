@@ -6,7 +6,7 @@ const API_BASE_URL = 'http://localhost:8080';
 // ⭐️ getToken 함수는 로그인 상태에서 JWT 토큰을 반환한다고 가정합니다. ⭐️
 const getToken = () => localStorage.getItem('token');
 
-const CartList = (props) => {
+const CartList = ({userToken, cartUpdateFlag}) => {
     const [cartItems, setCartItems] = useState([]);
     const [loading, setLoading] = useState(true);
     const [totalPrice, setTotalPrice] = useState(0);
@@ -70,7 +70,7 @@ const CartList = (props) => {
 
     useEffect(() => {
         fetchCart();
-    }, [props.isLoggedIn]);
+    }, [userToken, cartUpdateFlag]);
 
     // 수량 변경 처리 함수
     const handleUpdateQuantity = async (itemId, newQuantity) => {
