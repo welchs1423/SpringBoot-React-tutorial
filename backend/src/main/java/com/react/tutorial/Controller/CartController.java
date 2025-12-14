@@ -3,8 +3,11 @@ package com.react.tutorial.Controller;
 import com.react.tutorial.dto.CartItemDTO;
 import com.react.tutorial.service.CartService;
 import jakarta.validation.Valid;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
@@ -13,6 +16,8 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/cart")
 public class CartController {
+
+    private static final Logger logger = LoggerFactory.getLogger(CartController.class);
 
     private final CartService cartService;
 
@@ -51,6 +56,8 @@ public class CartController {
         String username = getUsername(userDetails);
         // ⭐️ 서비스에 String username 전달 ⭐️
         List<CartItemDTO> cart = cartService.getMyCart(username);
+
+        logger.info("CONTROLLER_LOAD_CHECK: " + SecurityContextHolder.getContext().getAuthentication().getName());
 
         return ResponseEntity.ok(cart);
     }

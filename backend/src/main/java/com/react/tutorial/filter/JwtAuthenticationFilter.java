@@ -46,6 +46,10 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     );
                 }
                 SecurityContextHolder.getContext().setAuthentication(authentication);
+
+                logger.info("FILTER_SAVE_SUCCESS: Context 저장됨: " + authentication.getName());
+
+
             }
         }catch(AuthenticationException ex) {
             SecurityContextHolder.clearContext();

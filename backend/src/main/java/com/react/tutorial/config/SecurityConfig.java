@@ -41,8 +41,6 @@ public class SecurityConfig {
         this.jwtAccessDeniedHandler = jwtAccessDeniedHandler;
         this.debugFilter = debugFilter;
 
-
-        // Context 전략 설정 (Context 유실 문제 해결책)
         SecurityContextHolder.setStrategyName(SecurityContextHolder.MODE_INHERITABLETHREADLOCAL);
     }
 
