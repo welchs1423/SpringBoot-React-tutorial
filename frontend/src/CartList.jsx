@@ -70,7 +70,7 @@ const CartList = () => {
 
     useEffect(() => {
         fetchCart();
-    }, []);
+    }, [props.isLoggedIn]);
 
     // 수량 변경 처리 함수
     const handleUpdateQuantity = async (itemId, newQuantity) => {
