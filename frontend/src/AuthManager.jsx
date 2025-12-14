@@ -29,7 +29,7 @@ const AuthManager = ({ onLoginSuccess, onLogout}) => {
                 const data = await response.json();
 
                 // 토큰과 역할 정보를 로컬저장소에 저장
-                localStorage.setItem('token', data.token);
+                localStorage.setItem('token', token);
                 localStorage.setItem('role',data.role);
 
                 onLoginSuccess(data.token, data.role);
