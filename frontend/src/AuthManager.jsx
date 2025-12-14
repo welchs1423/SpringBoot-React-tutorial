@@ -26,18 +26,33 @@ const AuthManager = ({ onLoginSuccess, onLogout}) => {
             });
 
             if(response.ok){
-                const data = await response.json();
+                let data;
+                try{
+                    data = await response.json();
+                }catch(e){
+                    console.error("로그인 응답 JSON 파싱 실패:",e);
+                    setMessage({type:'error', text:'로그인 응답 처리 오류: 서버 응답 형식을 확인하세요.'});
+                    return;
+                }
+
+                const token = data.accessToken;
+
+                if(!token){
+                    setMessage({type:'error', text:'로그인 실패: 서버에서 토큰을 받지 못했습니다.'});
+                    return;
+                }
 
                 // 토큰과 역할 정보를 로컬저장소에 저장
                 localStorage.setItem('token', token);
                 localStorage.setItem('role',data.role);
 
-                onLoginSuccess(data.token, data.role);
+                onLoginSuccess(token, data.role);
                 setMessage({type:'success', text:`✅ ${data.role} 권한으로 로그인 성공!`});
             } else {
                 setMessage({type:'error', text:'로그인 실패: ID 또는 비밀번호를 확인해주세요'})
             }
         }catch(error){
+            console.error("로그인 중 네트워크 오류:", error);
             setMessage({type:'error', text:'네트워크 오류로 로그인에 실패했습니다.'});
         }
     };
