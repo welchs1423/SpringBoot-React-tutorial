@@ -30,11 +30,11 @@ const CartList = ({userToken, cartUpdateFlag}) => {
     };
 
     // 장바구니 목록을 불러오는 함수
-    const fetchCart = async () => {
-        setLoading(true);
+    const fetchCart = async (showLoading = false) => {
+        if(showLoading) setLoading(true); // 인자가 true일 때만 로딩 상태 활성화
+
         const token = getToken();
         if(!token){
-            //alert('로그인이 필요합니다.');
             setCartItems([]);
             setTotalPrice(0);
             setLoading(false);
@@ -69,7 +69,7 @@ const CartList = ({userToken, cartUpdateFlag}) => {
     };
 
     useEffect(() => {
-        fetchCart();
+        fetchCart(true);
     }, [userToken, cartUpdateFlag]);
 
     // 수량 변경 처리 함수
@@ -79,7 +79,7 @@ const CartList = ({userToken, cartUpdateFlag}) => {
 
         try {
             const response = await fetch(`${API_BASE_URL}/api/cart/${itemId}`,{
-                method: 'PUT',
+                method: 'PATCH',
                 headers: {
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${token}`
@@ -193,7 +193,7 @@ const CartList = ({userToken, cartUpdateFlag}) => {
                             alignItems:'center'
                         }}>
                             <div>
-                                <h3 style={{ margin : 0}}>{item.productPrice}</h3>
+                                <h3 style={{ margin : 0}}>{item.productName}</h3>
                                 <p style={{margin:'5px 0'}}> 가격: {item.productPrice.toLocaleString()}원 </p>
                                 <p style={{margin:'5px 0'}}>
                                     수량:
