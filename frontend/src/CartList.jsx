@@ -3,10 +3,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 // API 기본 URL과 JWT 토큰을 가져오는 함수는 외부에 정의되어 있다고 가정합니다.
 const API_BASE_URL = 'http://localhost:8080';
 
-// ⭐️ getToken 함수는 로그인 상태에서 JWT 토큰을 반환한다고 가정합니다. ⭐️
-const getToken = () => localStorage.getItem('token');
-
-const CartList = ({userToken, cartUpdateFlag}) => {
+const CartList = ({userToken, cartUpdateFlag, onOrderSuccess}) => {
     const [cartItems, setCartItems] = useState([]);
     const [loading, setLoading] = useState(true);
     const [totalPrice, setTotalPrice] = useState(0);
@@ -33,8 +30,7 @@ const CartList = ({userToken, cartUpdateFlag}) => {
     const fetchCart = async (showLoading = false) => {
         if(showLoading) setLoading(true); // 인자가 true일 때만 로딩 상태 활성화
 
-        const token = getToken();
-        if(!token){
+        if(!userToken){
             setCartItems([]);
             setTotalPrice(0);
             setLoading(false);
@@ -44,7 +40,7 @@ const CartList = ({userToken, cartUpdateFlag}) => {
         try {
             const response = await fetch(`${API_BASE_URL}/api/cart`, {
                 headers: {
-                    'Authorization': `Bearer ${token}`
+                    'Authorization': `Bearer ${userToken}`
                 }
             });
 
@@ -74,7 +70,6 @@ const CartList = ({userToken, cartUpdateFlag}) => {
 
     // 수량 변경 처리 함수
     const handleUpdateQuantity = async (itemId, newQuantity) => {
-        const token = getToken();
         if (newQuantity < 1) return;
 
         try {
@@ -82,7 +77,7 @@ const CartList = ({userToken, cartUpdateFlag}) => {
                 method: 'PATCH',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
+                    'Authorization': `Bearer ${userToken}`
                 },
                 body: JSON.stringify({ quantity: newQuantity })
             });
@@ -99,14 +94,13 @@ const CartList = ({userToken, cartUpdateFlag}) => {
 
     // 상품 제거 처리 함수
     const handleRemoveItem = async (itemId) => {
-        const token = getToken();
         if(!window.confirm('장바구니에서 상품을 삭제하시겠습니까?')) return;
 
         try {
             const response = await fetch(`${API_BASE_URL}/api/cart/${itemId}`, {
                 method: 'DELETE',
                 headers: {
-                    'Authorization': `Bearer ${token}`
+                    'Authorization': `Bearer ${userToken}`
                 }
             });
 
@@ -127,8 +121,7 @@ const CartList = ({userToken, cartUpdateFlag}) => {
             return;
         }
 
-        const token = getToken();
-        if(!token){
+        if(!userToken){
             alert('로그인이 필요합니다.');
             return;
         }
@@ -145,7 +138,7 @@ const CartList = ({userToken, cartUpdateFlag}) => {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
+                    'Authorization': `Bearer ${userToken}`
                 },
                 body: JSON.stringify(orderPayload),
             });
@@ -153,6 +146,10 @@ const CartList = ({userToken, cartUpdateFlag}) => {
             if(response.ok){
                 // 주문 성공
                 alert('주문이 성공적으로 완료되었습니다! 장바구니가 비워집니다.');
+
+                if(onOrderSuccess){
+                    onOrderSuccess();
+                }
 
                 // 프론트엔드 상태 업데이트 (장바구니 비우기)
                 fetchCart();

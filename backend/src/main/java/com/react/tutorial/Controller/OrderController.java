@@ -1,6 +1,7 @@
 package com.react.tutorial.Controller;
 
 import com.react.tutorial.dto.OrderRequest;
+import com.react.tutorial.dto.OrderResponseDTO;
 import com.react.tutorial.entity.Order;
 import com.react.tutorial.entity.User;
 import com.react.tutorial.repository.UserRepository;
@@ -10,12 +11,10 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.awt.desktop.UserSessionEvent;
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/orders")
@@ -50,5 +49,18 @@ public class OrderController {
         } catch(Exception e){
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("주문 생성 중 예상치 못한 오류 발생: " + e.getMessage());
         }
+    }
+
+    @GetMapping
+    public ResponseEntity<List<OrderResponseDTO>> getMyOrders(
+            @AuthenticationPrincipal UserDetails userDetails){
+
+        User user = userRepository.findByUsername(userDetails.getUsername())
+                .orElseThrow(() -> new IllegalArgumentException("인증된 사용자를 찾을 수 없습니다."));
+
+        // 서비스에서 해당 유저의 주문 목록을 DTO 리스트로 변환해서 가져옴
+        List<OrderResponseDTO> orders = orderService.getUserOrders(user);
+
+        return ResponseEntity.ok(orders);
     }
 }

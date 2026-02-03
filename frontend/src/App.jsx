@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import CartList from './CartList';
+import OrderList from './OrderList';
 import AuthManager from './AuthManager';
 import './App.css';
 
@@ -232,9 +233,18 @@ function App() {
             <CartList
                 userToken={userToken}
                 isLoggedIn={!!userToken}
+                onOrderSuccess={() => setCartUpdateFlag(prev => prev + 1)}
                 cartUpdateFlag={cartUpdateFlag}
             />
             <hr style={{ margin: '30px 0' }}/>
+
+            <h2> 내 주문 내역</h2>
+            <OrderList
+                userToken={userToken}
+                updateFlag={cartUpdateFlag}
+            />
+
+            <hr style={{ margin: '30px 0'}}/>
 
             <h3>📝 등록된 상품 목록</h3>
 

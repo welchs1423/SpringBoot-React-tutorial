@@ -1,6 +1,8 @@
 package com.react.tutorial.service;
 
+import com.react.tutorial.dto.OrderItemDTO;
 import com.react.tutorial.dto.OrderRequest;
+import com.react.tutorial.dto.OrderResponseDTO;
 import com.react.tutorial.dto.OrderStatus;
 import com.react.tutorial.entity.*;
 import com.react.tutorial.repository.CartItemRepository;
@@ -111,5 +113,29 @@ public class OrderService {
             newAddress.setPhoneNumber(request.getPhoneNumber());
             return newAddress;
         }
+    }
+
+    public List<OrderResponseDTO> getUserOrders(User user){
+        // 1. 유저의 모든 주문을 최신순으로 조회 (주문 엔티티 리스트)
+        List<Order> orders = orderRepository.findByUserOrderByOrderDateDesc(user);
+        
+        // 2. Order 엔티티를 OrderResponseDTO로 변환
+        return orders.stream().map(order -> OrderResponseDTO.builder()
+                .id(order.getId())
+                .orderDate(order.getOrderDate())
+                .receiverName(order.getReceiverName())
+                .address(order.getAddress())
+                .phoneNumber(order.getPhoneNumber())
+                .paymentMethod(order.getPaymentMethod())
+                .totalPrice(order.getTotalAmount())
+                .status(order.getStatus().toString())
+                .orderItems(order.getOrderItems().stream().map(item ->
+                        new OrderItemDTO(
+                                item.getProduct().getName(),
+                            item.getOrderPrice(),
+                            item.getQuantity()
+                        )).collect(Collectors.toList()))
+                .build()
+        ).collect(Collectors.toList());
     }
 }
