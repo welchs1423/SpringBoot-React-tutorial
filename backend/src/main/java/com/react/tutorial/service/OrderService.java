@@ -138,4 +138,36 @@ public class OrderService {
                 .build()
         ).collect(Collectors.toList());
     }
+
+    /**
+     * 특정 주문 ID로 상세 정보를 조회합니다 (팝업용)
+     */
+    public OrderResponseDTO getOrderDetail(Long orderId, User user) {
+        // 1. 주문 아이디로 주문을 찾되, 없으면 에러 발생
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new IllegalArgumentException("해당 주문을 찾을 수 없습니다."));
+
+        // 2. 보안 체크: 주문한 사람이 현재 로그인한 유저인지 확인
+        if (!order.getUser().getId().equals(user.getId())) {
+            throw new IllegalStateException("해당 주문에 대한 조회 권한이 없습니다.");
+        }
+
+        // 3. 엔티티를 DTO로 변환 (기존 getUserOrders의 변환 로직과 동일)
+        return OrderResponseDTO.builder()
+                .id(order.getId())
+                .orderDate(order.getOrderDate())
+                .receiverName(order.getReceiverName())
+                .address(order.getAddress())
+                .phoneNumber(order.getPhoneNumber())
+                .paymentMethod(order.getPaymentMethod())
+                .totalPrice(order.getTotalAmount())
+                .status(order.getStatus().toString())
+                .orderItems(order.getOrderItems().stream().map(item ->
+                        new OrderItemDTO(
+                                item.getProduct().getName(),
+                                item.getOrderPrice(),
+                                item.getQuantity()
+                        )).collect(Collectors.toList()))
+                .build();
+    }
 }

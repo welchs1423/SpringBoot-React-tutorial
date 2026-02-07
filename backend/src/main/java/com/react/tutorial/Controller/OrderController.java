@@ -63,4 +63,27 @@ public class OrderController {
 
         return ResponseEntity.ok(orders);
     }
+
+    /**
+     * 특정 주문의 상세 정보를 가져옵니다 (팝업용)
+     * @param orderId URL 경로로 들어오는 주문 ID
+     */
+    @GetMapping("/{orderId}")
+    public ResponseEntity<?> getOrderDetail(
+            @AuthenticationPrincipal UserDetails userDetails,
+            @PathVariable Long orderId) {
+
+        User user = userRepository.findByUsername(userDetails.getUsername())
+                .orElseThrow(() -> new IllegalArgumentException("인증된 사용자를 찾을 수 없습니다."));
+
+        try {
+            // 서비스에서 해당 주문의 상세 정보(상품 정보 포함)를 DTO로 변환해 가져옴
+            // 예: orderService에 getOrderDetail 메서드가 있다고 가정
+            OrderResponseDTO orderDetail = orderService.getOrderDetail(orderId, user);
+
+            return ResponseEntity.ok(orderDetail);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("주문 상세 정보를 찾을 수 없습니다: " + e.getMessage());
+        }
+    }
 }
