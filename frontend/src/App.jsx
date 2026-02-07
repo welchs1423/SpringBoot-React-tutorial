@@ -151,9 +151,17 @@ function App() {
             {/* 🔍 검색창 영역 */}
             <div style={{ marginBottom: '20px', padding: '15px', backgroundColor: '#f8f9fa', borderRadius: '10px' }}>
                 <input
-                    type="text" placeholder="상품 이름 검색..." value={searchTerm}
+                    type="text"
+                    placeholder="상품 이름 검색..."
+                    value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid #ddd' }}
+                    style={{
+                        width: '100%',
+                        padding: '12px',
+                        borderRadius: '8px',
+                        border: '1px solid #ddd',
+                        boxSizing: 'border-box'
+                    }}
                 />
                 {searchTerm && filteredProducts.length === 0 && (
                     <p style={{ marginTop: '10px', color: '#666' }}>🔍 "{searchTerm}"에 대한 검색 결과가 없습니다.</p>
