@@ -33,20 +33,24 @@ const OrderList = ({userToken, updateFlag, userRole }) => {
     const fetchOrderDetails = async (orderId) => {
         try{
             const response = await fetch(`${API_BASE_URL}/api/orders/${orderId}`, {
+                method: 'GET',
                 headers: {
+                    'Content-Type': 'application/json',
                     'Authorization': `Bearer ${userToken}`
                 }
             });
-            const data = await response.json();
 
-            if(response.ok){
-                setSelectedOrder(data); // 데이터를 상태에 저장하면 아래 모달이 뜬다.
-            } else {
-                console.error("서버 에러 메시지:", data.message); // 서버에서 보낸 에러 확인
-                alert(`상세 정보를 가져올 수 없습니다: ${data.message || '알 수 없는 오류'}`);
+            if (!response.ok) {
+                // 서버에서 에러 응답(401, 403, 500 등)을 보낸 경우
+                const errorData = await response.json();
+                throw new Error(errorData.message || '상세 정보를 가져오지 못했습니다.');
             }
+
+            const data = await response.json();
+            setSelectedOrder(data); // 데이터 로드 성공 시 상세 팝업 오픈
         } catch (error) {
-            alert("네트워크 연결을 확인해주세요.");
+            console.error("상세 조회 에러:", error);
+            alert("네트워크 연결을 확인해주세요. (원인: " + error.message + ")");
         }
     };
 
@@ -175,13 +179,29 @@ const statusBadgeStyle = (status) => ({
 });
 
 const modalOverlayStyle = {
-    position: 'fixed', top: 0, left: 0, width: '100%', height: '100%',
-    backgroundColor:'rgba(0,0,0,0,6)',display:'flex',justifyContent:'center',alignItems:'center',zIndex:1000
+    position: 'fixed',
+    top: 0,
+    left: 0,
+    width: '100%',
+    height: '100%',
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1000
 };
 
 const modalContentStyle = {
-    backgroundColor: 'white', padding:'30px', borderRadius:'15px', width:'90%', maxWidth:'450px',
-    boxShadow:'0 10px 25px rgba(0,0,0,0,2)', textAlign:'center'
+    backgroundColor: 'white',
+    padding: '30px',
+    borderRadius: '15px',
+    width: '90%',
+    maxWidth: '450px',
+    // 🌟 추가: 모든 글자색을 진한 회색으로 강제 지정
+    color: '#333',
+    // 🌟 오타 수정: rgba(0,0,0,0.2) - 마지막 콤마 보정
+    boxShadow: '0 10px 25px rgba(0, 0, 0, 0.2)',
+    textAlign: 'center'
 };
 
 const closeBtnStyle = {
