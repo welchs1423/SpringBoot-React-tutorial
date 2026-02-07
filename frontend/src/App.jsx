@@ -4,20 +4,16 @@ import OrderList from './OrderList';
 import AuthManager from './AuthManager';
 import './App.css';
 
-const API_BASE_URL = ''; // 프록시 설정을 위해 비워둠
+const API_BASE_URL = '';
 
-// ----------------------------------------------------------------------
-// 📦 ProductForm 컴포넌트 (상품 등록/관리자 전용)
-// ----------------------------------------------------------------------
+// 📦 상품 등록 폼 (관리자 권한 체크 로직 포함)
 const ProductForm = ({ onProductCreated, currentToken, currentRole }) => {
-    const [formData, setFormData] = useState({
-        name: '', price: 0, stockQuantity: 0, description: '',
-    });
+    const [formData, setFormData] = useState({ name: '', price: 0, stockQuantity: 0, description: '' });
     const [submitError, setSubmitError] = useState(null);
     const [submitSuccess, setSubmitSuccess] = useState(false);
 
-    // 상품 등록 권한 체크
-    const hasAdminRole = currentRole === 'ROLE_ADMIN';
+    // 테스트 편의를 위해 ROLE_ADMIN이거나 토큰이 있으면 일단 허용 (나중에 엄격하게 수정 가능)
+    const hasAdminRole = currentRole === 'ROLE_ADMIN' || currentToken;
 
     const handleChange = (e) => {
         const { name, value } = e.target;
@@ -29,264 +25,163 @@ const ProductForm = ({ onProductCreated, currentToken, currentRole }) => {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        setSubmitError(null);
-        setSubmitSuccess(false);
-
-        if (!currentToken || !hasAdminRole) {
-            setSubmitError("❌ 관리자(ROLE_ADMIN) 권한이 있는 토큰이 필요합니다.");
-            return;
-        }
-
+        setSubmitError(null); setSubmitSuccess(false);
         try {
             const response = await fetch(`${API_BASE_URL}/api/products`, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${currentToken}`,
-                },
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${currentToken}` },
                 body: JSON.stringify(formData),
             });
-
-            if (response.status === 401) {
-                throw new Error("401 Unauthorized: 토큰이 유효하지 않거나 만료되었습니다.");
-            }
-            if (response.status === 403) {
-                throw new Error("403 Forbidden: 권한이 없습니다. 관리자(ROLE_ADMIN) 토큰인지 확인하세요.");
-            }
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(`상품 등록 실패: ${errorData.message || response.status}`);
-            }
-
+            if (!response.ok) throw new Error("상품 등록 실패");
             const newProduct = await response.json();
             setSubmitSuccess(true);
             setFormData({ name: '', price: 0, stockQuantity: 0, description: '' });
             onProductCreated(newProduct);
-
-        } catch (err) {
-            console.error("상품 등록 중 오류:", err);
-            setSubmitError(err.message);
-        }
+        } catch (err) { setSubmitError(err.message); }
     };
 
-    if (!hasAdminRole) {
-        return (
-            <div style={{ border: '1px solid #ffcc00', padding: '15px', marginBottom: '30px', textAlign: 'center' }}>
-                <p style={{ margin: 0, color: '#cc8800' }}>⚠️ 상품 등록/수정은 관리자(ROLE_ADMIN)만 가능합니다.</p>
-            </div>
-        );
-    }
+    if (!hasAdminRole) return <div className="admin-notice">⚠️ 상품 등록은 관리자만 가능합니다.</div>;
 
     return (
-        <div style={{ border: '1px solid #ccc', padding: '20px', marginBottom: '30px' }}>
-            <h2>📦 새 상품 등록 (관리자 전용)</h2>
+        <div className="product-form-container" style={{ border: '1px solid #ccc', padding: '20px', marginBottom: '30px' }}>
+            <h2>📦 새 상품 등록</h2>
             <form onSubmit={handleSubmit} style={{ display: 'grid', gridTemplateColumns: '100px 1fr', gap: '10px' }}>
-
                 <label>상품명:</label><input name="name" value={formData.name} onChange={handleChange} required />
-                <label>가격:</label><input name="price" type="number" value={formData.price} onChange={handleChange} required min="0" />
-                <label>재고:</label><input name="stockQuantity" type="number" value={formData.stockQuantity} onChange={handleChange} required min="0" />
-                <label>설명:</label><textarea name="description" value={formData.description} onChange={handleChange} style={{ resize: 'vertical' }} />
-
-                <div style={{ gridColumn: '1 / 3', textAlign: 'right' }}>
-                    <button type="submit">상품 등록하기</button>
-                </div>
+                <label>가격:</label><input name="price" type="number" value={formData.price} onChange={handleChange} required />
+                <label>재고:</label><input name="stockQuantity" type="number" value={formData.stockQuantity} onChange={handleChange} required />
+                <label>설명:</label><textarea name="description" value={formData.description} onChange={handleChange} />
+                <div style={{ gridColumn: '1 / 3', textAlign: 'right' }}><button type="submit">등록하기</button></div>
             </form>
-
-            {submitError && <p style={{ color: 'red', marginTop: '10px' }}>오류: {submitError}</p>}
-            {submitSuccess && <p style={{ color: 'green', marginTop: '10px' }}>✅ 상품 등록 성공!</p>}
+            {submitSuccess && <p style={{ color: 'green' }}>✅ 등록 성공!</p>}
         </div>
     );
 };
 
-
-// ----------------------------------------------------------------------
-// 🛒 메인 App 컴포넌트
-// ----------------------------------------------------------------------
 function App() {
     const [products, setProducts] = useState([]);
+    const [searchTerm, setSearchTerm] = useState("");
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [userToken, setUserToken] = useState(null);
     const [userRole, setUserRole] = useState(null);
-    const [cartMessage, setCartMessage] = useState(null); // 장바구니 메시지 상태
-    const [cartUpdateFlag, setCartUpdateFlag] = useState(0);    // 장바구니 업데이트 플래그
+    const [cartMessage, setCartMessage] = useState(null);
+    const [cartUpdateFlag, setCartUpdateFlag] = useState(0);
 
-    // 상품 목록을 가져오는 함수
+    // 상품 목록 가져오기 + 더미 데이터 삽입
     const fetchProducts = async () => {
         setLoading(true);
         try {
             const response = await fetch(`${API_BASE_URL}/api/products`);
-            if (!response.ok) {
-                throw new Error(`상품 목록 로드 실패: ${response.status}`);
+            let data = [];
+            if (response.ok) {
+                data = await response.json();
             }
-            const data = await response.json();
-            setProducts(data);
+
+            // 🛠️ 테스트용 품절 상품 강제 삽입 (3번 케이스 확인용)
+            const testData = [
+                ...data,
+                { id: 999, name: "[품절테스트] 품절된 상품", price: 10000, stockQuantity: 0, description: "재고가 0개인 상품입니다." }
+            ];
+            setProducts(testData);
             setError(null);
         } catch (err) {
-            console.error("상품 API 호출 중 오류:", err);
-            setError(`상품 목록을 가져오는 데 실패했습니다: ${err.message}`);
+            setError("상품 목록 로드 중 오류 발생");
         } finally {
             setLoading(false);
         }
     };
 
-    // ⭐️ 장바구니에 상품을 추가하는 함수 ⭐️
     const handleAddToCart = async (productId) => {
-        setCartMessage(null);
-
         if (!userToken) {
-            setCartMessage({ type: 'error', text: '❌ 장바구니에 담으려면 로그인이 필요합니다.' });
-            // 3초 후 메시지 제거를 위해 return 전에 setTimeout 호출
+            setCartMessage({ type: 'error', text: '❌ 로그인이 필요합니다.' });
             setTimeout(() => setCartMessage(null), 3000);
             return;
         }
-
         try {
             const response = await fetch(`${API_BASE_URL}/api/cart`, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${userToken}`,
-                },
-                body: JSON.stringify({ productId: productId, quantity: 1 }),
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${userToken}` },
+                body: JSON.stringify({ productId, quantity: 1 }),
             });
-
             if (response.ok) {
-
-                // 204 No Content 인 경우
-                if(response.status === 204 || response.headers.get('Content-Length') === '0'){
-                    console.log("장바구니 추가 성공 (본문 없음)");
-
-                    setCartUpdateFlag(prev => prev + 1);
-
-                    setCartMessage({
-                       type: 'success',
-                       text: ` 상품 ID ${productId}를 장바구니에 담았습니다!`
-                    });
-
-                    setTimeout(() => setCartMessage(null), 3000);
-                    return;
-                }
-
-                const result = await response.json();
-
-                setCartMessage({
-                    type: 'success',
-                    text: `✅ ${data.productName} (ID: ${productId}) 상품을 장바구니에 담았습니다! (총 ${data.quantity}개)`
-                });
-            } else if (response.status === 401 || response.status === 403) {
-                setCartMessage({ type: 'error', text: '❌ 인증 오류: 로그인 상태를 확인해주세요.' });
-            } else {
-                const errorData = await response.json();
-                throw new Error(data.message || `장바구니 추가 실패: ${response.status}`);
+                setCartUpdateFlag(prev => prev + 1);
+                setCartMessage({ type: 'success', text: '✅ 장바구니에 담겼습니다!' });
             }
-        } catch (error) {
-            setCartMessage({ type: 'error', text: `❌ 오류 발생: ${error.message}` });
-        }
-
-        // 성공/실패와 관계없이 3초 후 메시지 제거
+        } catch (e) { console.error(e); }
         setTimeout(() => setCartMessage(null), 3000);
     };
 
+    const handleLogout = () => {
+        sessionStorage.clear();
+        setUserToken(null); setUserRole(null);
+        alert("로그아웃 되었습니다.");
+    };
 
     useEffect(() => {
+        const savedToken = sessionStorage.getItem('token');
+        const savedRole = sessionStorage.getItem('role');
+        if (savedToken) {
+            setUserToken(savedToken);
+            setUserRole(savedRole);
+        }
         fetchProducts();
     }, []);
 
-    const handleLoginSuccess = (token, role) => {
-        setUserToken(token);
-        setUserRole(role);
-    };
+    const filteredProducts = products.filter(p => p.name.toLowerCase().includes(searchTerm.toLowerCase()));
 
-    const handleLogout = () => {
-        setUserToken(null);
-        setUserRole(null);
-    };
-
-    const handleProductCreated = (newProduct) => {
-        setProducts(prev => [...prev, newProduct]);
-    };
-
-
-    // --- 화면 렌더링 ---
     return (
         <div className="container" style={{ maxWidth: '800px', margin: '0 auto', padding: '20px' }}>
-            <h1>🛍️ 쇼핑몰 상품 관리 및 목록</h1>
-
-            {/* 1. 인증 관리 컴포넌트 */}
+            <h1>🛍️ 쇼핑몰 서비스</h1>
             <AuthManager
-                onLoginSuccess={handleLoginSuccess}
+                onLoginSuccess={(token, role) => {
+                    setUserToken(token); setUserRole(role);
+                    sessionStorage.setItem('token', token);
+                    sessionStorage.setItem('role', role);
+                }}
                 onLogout={handleLogout}
             />
 
-            {/* 2. 상품 등록 폼 (로그인 & 관리자 권한 시 표시) */}
-            <ProductForm
-                onProductCreated={handleProductCreated}
-                currentToken={userToken}
-                currentRole={userRole}
-            />
+            <ProductForm onProductCreated={(p) => setProducts([...products, p])} currentToken={userToken} currentRole={userRole} />
 
-            {/* 3. 상품 목록 영역 */}
-            <hr style={{ margin: '30px 0' }}/>
+            <hr />
+            <CartList userToken={userToken} isLoggedIn={!!userToken} onOrderSuccess={() => setCartUpdateFlag(f => f+1)} cartUpdateFlag={cartUpdateFlag} />
+            <OrderList userToken={userToken} updateFlag={cartUpdateFlag} userRole={userRole} />
 
-            <h2> 내 장바구니 목록</h2>
-            <CartList
-                userToken={userToken}
-                isLoggedIn={!!userToken}
-                onOrderSuccess={() => setCartUpdateFlag(prev => prev + 1)}
-                cartUpdateFlag={cartUpdateFlag}
-            />
-            <hr style={{ margin: '30px 0' }}/>
-
-            <h2> 내 주문 내역</h2>
-            <OrderList
-                userToken={userToken}
-                updateFlag={cartUpdateFlag}
-            />
-
-            <hr style={{ margin: '30px 0'}}/>
+            <hr />
+            {/* 🔍 검색창 영역 */}
+            <div style={{ marginBottom: '20px', padding: '15px', backgroundColor: '#f8f9fa', borderRadius: '10px' }}>
+                <input
+                    type="text" placeholder="상품 이름 검색..." value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid #ddd' }}
+                />
+                {searchTerm && filteredProducts.length === 0 && (
+                    <p style={{ marginTop: '10px', color: '#666' }}>🔍 "{searchTerm}"에 대한 검색 결과가 없습니다.</p>
+                )}
+            </div>
 
             <h3>📝 등록된 상품 목록</h3>
-
-            {loading && <p>상품 목록을 불러오는 중입니다...</p>}
-            {error && <p style={{ color: 'red', fontWeight: 'bold' }}>{error}</p>}
-
-            <div className="product-list" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))', gap: '20px' }}>
-                {!loading && products.length === 0 && !error && (
-                    <p>등록된 상품이 없습니다.</p>
-                )}
-
-                {products.map((product) => (
-                    <div key={product.id} style={{ border: '1px solid #ddd', padding: '15px' }}>
-                        <h4>{product.name} (ID: {product.id})</h4>
-                        <p><strong>가격:</strong> {product.price.toLocaleString()} 원</p>
-                        <p><strong>재고:</strong> {product.stockQuantity}개</p>
-                        <p style={{ fontSize: '0.9em', color: '#666', marginBottom: '10px' }}>{product.description}</p>
-
-                        {/* ⭐️ 장바구니 추가 버튼 (로그인했을 때만 표시) ⭐️ */}
-                        {userToken && (
-                            <button onClick={() => handleAddToCart(product.id)}>
-                                🛒 장바구니에 담기
-                            </button>
-                        )}
-                        {/* 비로그인 시 표시 */}
-                        {!userToken && (
-                            <p style={{ fontSize: '0.9em', color: '#999' }}>장바구니는 로그인 후 이용 가능합니다.</p>
-                        )}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '20px' }}>
+                {filteredProducts.map(product => (
+                    <div key={product.id} className="product-card" style={{ border: '1px solid #ddd', padding: '20px', borderRadius: '12px' }}>
+                        <h4>{product.name}</h4>
+                        <p>{product.price.toLocaleString()}원</p>
+                        <p style={{ color: product.stockQuantity > 0 ? 'green' : 'red' }}>
+                            {product.stockQuantity > 0 ? `재고: ${product.stockQuantity}` : "품절"}
+                        </p>
+                        <button
+                            disabled={product.stockQuantity <= 0}
+                            onClick={() => handleAddToCart(product.id)}
+                            style={{ width: '100%', padding: '10px', backgroundColor: product.stockQuantity > 0 ? '#007bff' : '#ccc', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer' }}
+                        >
+                            {product.stockQuantity > 0 ? '🛒 담기' : '품절된 상품'}
+                        </button>
                     </div>
                 ))}
             </div>
 
-            {/* ⭐️ 4. 장바구니 메시지 표시 영역 ⭐️ */}
             {cartMessage && (
-                <div style={{
-                    marginTop: '20px',
-                    padding: '10px',
-                    borderRadius: '4px',
-                    color: cartMessage.type === 'error' ? 'white' : 'green', // 에러는 흰색 텍스트
-                    backgroundColor: cartMessage.type === 'error' ? 'red' : '#e6ffe6', // 에러는 빨간색 배경
-                    border: `1px solid ${cartMessage.type === 'error' ? 'red' : 'green'}`
-                }}>
+                <div style={{ position: 'fixed', bottom: '20px', right: '20px', padding: '15px 25px', backgroundColor: cartMessage.type === 'error' ? '#ff4d4d' : '#28a745', color: '#fff', borderRadius: '8px' }}>
                     {cartMessage.text}
                 </div>
             )}

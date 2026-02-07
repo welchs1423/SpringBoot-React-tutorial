@@ -35,8 +35,6 @@ public class TutorialApplication {
                         .description("편안한 착용감을 자랑하는 클래식 캔버스 스니커즈입니다.")
                         .build();
                 productRepository.save(product2);
-                
-                System.out.println("초기 상품 데이터 2개 생성 성공");
             }
         };
     }
