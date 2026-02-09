@@ -131,6 +131,7 @@ public class OrderService {
                 .status(order.getStatus().toString())
                 .orderItems(order.getOrderItems().stream().map(item ->
                         new OrderItemDTO(
+                                item.getProduct().getId(),
                                 item.getProduct().getName(),
                             item.getOrderPrice(),
                             item.getQuantity()
@@ -164,6 +165,7 @@ public class OrderService {
                 .status(order.getStatus().toString())
                 .orderItems(order.getOrderItems().stream().map(item ->
                         new OrderItemDTO(
+                                item.getProduct().getId(),
                                 item.getProduct().getName(),
                                 item.getOrderPrice(),
                                 item.getQuantity()
