@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 
 const API_BASE_URL = 'http://localhost:8080';
 
-const OrderList = ({ userToken, updateFlag, userRole }) => {
+const OrderList = ({ userToken, updateFlag, userRole, currentUsername }) => {
     const [orders, setOrders] = useState([]);
     const [selectedOrder, setSelectedOrder] = useState(null);
     const [loading, setLoading] = useState(true);
@@ -129,6 +129,23 @@ const OrderList = ({ userToken, updateFlag, userRole }) => {
         }
     };
 
+    const handleReviewDelete = async (reviewId, pId) => {
+        if(!window.confirm("리뷰를 삭제하시겠습니까?")) return;
+
+        try {
+            const response = await fetch(`${API_BASE_URL}/api/reviews/${reviewId}`,{
+                method:'DELETE',
+                headers:{'Authorization':`Bearer ${userToken}`}
+            });
+            if(response.ok){
+                alert("삭제되었습니다.");
+                loadReviews(pId);   // 목록 새로고침
+            }
+        } catch (error){
+            console.error("삭제 실패:",error);
+        }
+    };
+
     useEffect(() => {
         fetchOrders();
     }, [userToken, updateFlag]);
@@ -213,6 +230,9 @@ const OrderList = ({ userToken, updateFlag, userRole }) => {
                                                                     <span style={{ fontSize: '11px', color: '#888' }}>{rev.username || '익명'}</span>
                                                                 </div>
                                                                 <p style={{ margin: '5px 0', fontSize: '13px', color: '#333' }}>{rev.content}</p>
+                                                                {rev.username === currentUsername && (
+                                                                    <button onClick={() => handleReviewDelete(rev.id, pId)} style={deleteBtnStyle}>삭제</button>
+                                                                )}
                                                             </div>
                                                         ))
                                                     ) : (
@@ -229,6 +249,27 @@ const OrderList = ({ userToken, updateFlag, userRole }) => {
                             ))}
                         </div>
                         <h3 style={{ textAlign: 'right' }}>합계: {selectedOrder.totalPrice.toLocaleString()}원</h3>
+
+                        <div style={{ display:'flex', gap:'10px',marginBottom:'10px'}}>
+                            {selectedOrder.status === 'ORDERED' && (
+                                <button
+                                    onClick={() => handleUpdateStatus(selectedOrder.id, 'CANCELLED')}
+                                    style={cancelBtnStyle}
+                                >
+                                    주문 취소
+                                </button>
+                            )}
+
+                            {selectedOrder.status === 'DELIVERED' && (
+                                <button
+                                    onClick={() => handleUpdateStatus(selectedOrder.id, 'RETURN_REQUESTED')}
+                                    style={returnBtnStyle}
+                                >
+                                    반품 신청
+                                </button>
+                            )}
+                        </div>
+
                         <button onClick={() => setSelectedOrder(null)} style={closeBtnStyle}>닫기</button>
                     </div>
                 </div>
@@ -244,5 +285,17 @@ const reviewSubmitBtnStyle = { padding: '4px 12px', fontSize: '12px', cursor: 'p
 const modalOverlayStyle = { position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', backgroundColor: 'rgba(0, 0, 0, 0.6)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000 };
 const modalContentStyle = { backgroundColor: 'white', padding: '30px', borderRadius: '15px', width: '90%', maxWidth: '450px', color: '#333', textAlign: 'center' };
 const closeBtnStyle = { width: '100%', padding: '12px', marginTop: '20px', backgroundColor: '#444', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer' };
+const cancelBtnStyle = {
+    flex: 1, padding: '10px', backgroundColor: '#ff4d4f', color: 'white',
+    border: 'none', borderRadius:'8px', cursor: 'pointer', fontWeight:'bold'
+};
+const returnBtnStyle = {
+    flex: 1, padding: '10px', backgroundColor: '#faad14', color: 'white',
+    border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold'
+};
+const deleteBtnStyle = {
+    padding: '2px 6px', fontSize : '11px', backgroundColor: '#ff4d4f',
+    color: 'white', border: 'none', borderRadius: '4px', cursor :'pointer', marginLeft:'10px'
+};
 
 export default OrderList;
