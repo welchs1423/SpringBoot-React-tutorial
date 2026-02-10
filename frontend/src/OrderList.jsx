@@ -147,7 +147,7 @@ const OrderList = ({ userToken, updateFlag, userRole }) => {
                         <h4 style={{ marginTop: '10px' }}>주문 상품 목록</h4>
                         <div style={{ maxHeight: '300px', overflowY: 'auto', border: '1px solid #eee', padding: '10px' }}>
                             {selectedOrder.orderItems && selectedOrder.orderItems.map(item => (
-                                <React.Fragment key={item.id}> {/* 🌟 Fragment로 감싸야 에러 안남 */}
+                                <React.Fragment key={item.id}>
                                     <div style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0' }}>
                                         <span>{item.productName} ({item.quantity}개)</span>
                                         <button onClick={() => setSelectedProductId(item.productId)} style={reviewOpenBtnStyle}>
@@ -165,8 +165,7 @@ const OrderList = ({ userToken, updateFlag, userRole }) => {
                                             <br />
                                             <button
                                                 onClick={() => {
-                                                    console.log("클릭한 아이템 전체 정보:", item); // 👈 여기서 진짜 이름을 찾으세요!
-                                                    // 만약 'item.id'가 상품번호라면 아래처럼 수정
+                                                    console.log("클릭한 아이템 전체 정보:", item);
                                                     handleReviewSubmit(item);
                                                 }}
                                                 style={reviewSubmitBtnStyle}
