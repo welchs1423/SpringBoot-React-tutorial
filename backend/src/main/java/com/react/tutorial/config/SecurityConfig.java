@@ -59,7 +59,8 @@ public class SecurityConfig {
         filter.setPermittedUrls(Arrays.asList(
             "/api/auth/login",
             "/api/auth/register",
-            "/api/products"
+            "/api/products",
+            "/api/reviews/**"
         ));
 
         return filter;
@@ -83,10 +84,9 @@ public class SecurityConfig {
 
                 // 요청 권한 설정
                 .authorizeHttpRequests(authorize -> authorize
-                        .requestMatchers(HttpMethod.POST, "/api/auth/**").permitAll() // POST 회원가입/로그인 명시적 허용
-                        .requestMatchers(HttpMethod.GET, "/api/auth/**", "/public/**", "/h2-console/**").permitAll() // GET 요청 허용
-                        .requestMatchers(HttpMethod.GET, "/api/products", "/api/products/*").permitAll()
-
+                        .requestMatchers(HttpMethod.POST, "/api/auth/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/auth/**", "/public/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/products", "/api/products/*", "/api/reviews/**").permitAll()
                         .anyRequest().authenticated()
                 )
 

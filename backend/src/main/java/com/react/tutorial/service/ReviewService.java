@@ -7,6 +7,8 @@ import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
+
 @Service
 @RequiredArgsConstructor
 public class ReviewService {
@@ -28,5 +30,9 @@ public class ReviewService {
         review.setRating(request.getRating());
 
         reviewRepository.save(review);
+    }
+
+    public List<Review> getReviewsByProductId(Long productId) {
+        return reviewRepository.findAllByProductIdWithUser(productId);
     }
 }

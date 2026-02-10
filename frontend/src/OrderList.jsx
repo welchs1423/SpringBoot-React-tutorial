@@ -8,6 +8,7 @@ const OrderList = ({ userToken, updateFlag, userRole }) => {
     const [loading, setLoading] = useState(true);
     const [reviewText, setReviewText] = useState("");
     const [selectedProductId, setSelectedProductId] = useState(null);
+    const [reviewsMap, setReviewsMap] = useState({});
 
     const fetchOrders = async () => {
         if (!userToken) return;
@@ -71,7 +72,6 @@ const OrderList = ({ userToken, updateFlag, userRole }) => {
         }
     };
 
-    // 🌟 수정됨: 인자로 productId를 받도록 처리
     const handleReviewSubmit = async (item) => {
 
         if(!userToken){
@@ -79,8 +79,7 @@ const OrderList = ({ userToken, updateFlag, userRole }) => {
             return;
         }
 
-        console.log("item 객체 구조:", JSON.stringify(item));
-        const pId = item.productId || item.id;
+        const pId = String(item.productId || item.id);
 
         if(!pId){
             alert("상품 ID 정보가 누락되었습니다. 백엔드 DTO를 확인해주세요!");
@@ -103,11 +102,30 @@ const OrderList = ({ userToken, updateFlag, userRole }) => {
             if (response.ok) {
                 alert("리뷰가 등록되었습니다.");
                 setReviewText("");
+                loadReviews(pId);
             } else if(response.status === 401){
                 alert("인증 오류가 발생했습니다.");
             }
         } catch (error) {
             console.error("리뷰 등록 요청 중 에러 :", error)
+        }
+    };
+
+    const loadReviews = async (pId) => {
+        try {
+            const response = await fetch(`${API_BASE_URL}/api/reviews/product/${pId}`, {
+                headers: {
+                    'Authorization': `Bearer ${userToken}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                setReviewsMap(prev => ({ ...prev, [String(pId)]: data }));
+            }
+        } catch (error) {
+            console.error("리뷰 로드 실패:", error);
         }
     };
 
@@ -150,11 +168,18 @@ const OrderList = ({ userToken, updateFlag, userRole }) => {
                                 <React.Fragment key={item.id}>
                                     <div style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0' }}>
                                         <span>{item.productName} ({item.quantity}개)</span>
-                                        <button onClick={() => setSelectedProductId(item.productId)} style={reviewOpenBtnStyle}>
+                                        <button
+                                            onClick={() => {
+                                                const pId = String(item.productId || item);
+                                                setSelectedProductId(pId);
+                                                loadReviews(pId);
+                                            }}
+                                            style={reviewOpenBtnStyle}
+                                        >
                                             리뷰쓰기
                                         </button>
                                     </div>
-                                    {selectedProductId === item.productId && (
+                                    {String(selectedProductId) === String(item.productId || item) && (
                                         <div style={{ marginTop: '10px', background: '#f9f9f9', padding: '10px', borderRadius: '5px' }}>
                                             <textarea
                                                 value={reviewText}
@@ -165,13 +190,38 @@ const OrderList = ({ userToken, updateFlag, userRole }) => {
                                             <br />
                                             <button
                                                 onClick={() => {
-                                                    console.log("클릭한 아이템 전체 정보:", item);
                                                     handleReviewSubmit(item);
                                                 }}
                                                 style={reviewSubmitBtnStyle}
                                             >
                                                 등록
                                             </button>
+
+                                            {/* 리뷰 리스트 영역 */}
+                                            <div style={{ marginTop: '15px', padding: '10px', backgroundColor: '#f8f9fa', borderRadius: '5px' }}>
+                                                <h5 style={{ fontSize: '14px', marginBottom: '10px' }}>💬 상품평</h5>
+
+                                                {(() => {
+                                                    const pId = String(item.productId || item);
+                                                    const productReviews = reviewsMap[pId];
+
+                                                    return productReviews && productReviews.length > 0 ? (
+                                                        productReviews.map((rev) => (
+                                                            <div key={rev.id} style={{ padding: '8px 0', borderBottom: '1px solid #eee', textAlign: 'left' }}>
+                                                                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                                                    <strong>⭐ {rev.rating || 5}</strong>
+                                                                    <span style={{ fontSize: '11px', color: '#888' }}>{rev.username || '익명'}</span>
+                                                                </div>
+                                                                <p style={{ margin: '5px 0', fontSize: '13px', color: '#333' }}>{rev.content}</p>
+                                                            </div>
+                                                        ))
+                                                    ) : (
+                                                        <p style={{ fontSize: '12px', color: '#999', textAlign: 'center' }}>
+                                                            아직 작성된 리뷰가 없습니다.
+                                                        </p>
+                                                    );
+                                                })() }
+                                            </div>
                                             <button onClick={() => setSelectedProductId(null)} style={{ ...reviewSubmitBtnStyle, backgroundColor: '#999' }}>취소</button>
                                         </div>
                                     )}
