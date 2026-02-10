@@ -188,7 +188,6 @@ const OrderList = ({ userToken, updateFlag, userRole }) => {
     );
 };
 
-// ... 스타일 객체들은 팀장님 코드와 동일하게 유지 ...
 const listItemStyle = { border: '1px solid #ddd', padding: '15px', marginBottom: '10px', cursor: 'pointer', borderRadius: '10px', backgroundColor: '#fff' };
 const statusBadgeStyle = (status) => ({ padding: '4px 8px', borderRadius: '4px', fontSize: '12px', backgroundColor: status === 'ORDERED' ? '#e3f2fd' : '#f5f5f5', color: status === 'ORDERED' ? '#1976d2' : '#666' });
 const reviewOpenBtnStyle = { padding: '2px 8px', fontSize: '12px', cursor: 'pointer', backgroundColor: '#007bff', color: '#fff', border: 'none', borderRadius: '4px' };
