@@ -47,4 +47,17 @@ public class ReviewService {
 
         reviewRepository.delete(review);
     }
+
+    @Transactional
+    public void updateReview(Long reviewId, String username, String content, int rating){
+        Review review = reviewRepository.findById(reviewId)
+                .orElseThrow(() -> new RuntimeException("리뷰가 존재하지 않습니다."));
+
+        if(!review.getUser().getUsername().equals(username)){
+            throw new RuntimeException("수정 권한이 없습니다.");
+        }
+
+        review.setContent(content);
+        review.setRating(rating);
+    }
 }

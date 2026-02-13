@@ -53,4 +53,18 @@ public class ReviewController {
         reviewService.deleteReview(reviewId, username);
         return ResponseEntity.ok().build();
     }
+
+    @PutMapping("/{reviewId}")
+    public ResponseEntity<?> updateReview(@PathVariable Long reviewId,
+                                          @RequestBody Map<String, Object> payload,
+                                          Authentication authentication) {
+        String username = authentication.getName();
+
+        String content = (String) payload.get("content");
+
+        int rating = Integer.parseInt(payload.get("rating").toString());
+
+        reviewService.updateReview(reviewId, username, content, rating);
+        return ResponseEntity.ok().body("리뷰가 수정되었습니다.");
+    }
 }
