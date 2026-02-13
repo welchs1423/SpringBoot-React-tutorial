@@ -64,6 +64,7 @@ function App() {
     const [error, setError] = useState(null);
     const [userToken, setUserToken] = useState(null);
     const [userRole, setUserRole] = useState(null);
+    const [currentUserName, setCurrentUserName] = useState(null);
     const [cartMessage, setCartMessage] = useState(null);
     const [cartUpdateFlag, setCartUpdateFlag] = useState(0);
 
@@ -120,9 +121,11 @@ function App() {
     useEffect(() => {
         const savedToken = sessionStorage.getItem('token');
         const savedRole = sessionStorage.getItem('role');
+        const savedName = sessionStorage.getItem('username');
         if (savedToken) {
             setUserToken(savedToken);
             setUserRole(savedRole);
+            setCurrentUserName(savedName);
         }
         fetchProducts();
     }, []);
@@ -133,10 +136,16 @@ function App() {
         <div className="container" style={{ maxWidth: '800px', margin: '0 auto', padding: '20px' }}>
             <h1>🛍️ 쇼핑몰 서비스</h1>
             <AuthManager
-                onLoginSuccess={(token, role) => {
-                    setUserToken(token); setUserRole(role);
+                onLoginSuccess={(token, role, username) => {
+                    setUserToken(token);
+                    setUserRole(role);
+                    setCurrentUserName(username);
+
                     sessionStorage.setItem('token', token);
                     sessionStorage.setItem('role', role);
+                    sessionStorage.setItem('username', username);
+
+                    console.log("로그인 성공! 유저:", username);
                 }}
                 onLogout={handleLogout}
             />
@@ -145,7 +154,12 @@ function App() {
 
             <hr />
             <CartList userToken={userToken} isLoggedIn={!!userToken} onOrderSuccess={() => setCartUpdateFlag(f => f+1)} cartUpdateFlag={cartUpdateFlag} />
-            <OrderList userToken={userToken} updateFlag={cartUpdateFlag} userRole={userRole} />
+            <OrderList
+                userToken={userToken}
+                updateFlag={cartUpdateFlag}
+                userRole={userRole}
+                currentUserName={currentUserName}
+            />
 
             <hr />
             {/* 🔍 검색창 영역 */}

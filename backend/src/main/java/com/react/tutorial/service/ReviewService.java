@@ -39,10 +39,10 @@ public class ReviewService {
     @Transactional
     public void deleteReview(Long reviewId, String username) {
         Review review = reviewRepository.findById(reviewId)
-                .orElseThrow(() -> new RuntimeException("리뷰를 찾을 수 없습니다."));
+                .orElseThrow(() -> new RuntimeException("리뷰가 존재하지 않습니다."));
 
-        if(!review.getUser().getUsername().equals(username)){
-            throw new RuntimeException("본인이 작성한 리뷰만 삭제할 수 있습니다.");
+        if (!review.getUser().getUsername().equals(username)) {
+            throw new RuntimeException("삭제 권한이 없습니다.");
         }
 
         reviewRepository.delete(review);

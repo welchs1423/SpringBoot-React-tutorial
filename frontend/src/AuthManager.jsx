@@ -46,7 +46,7 @@ const AuthManager = ({ onLoginSuccess, onLogout}) => {
                 localStorage.setItem('token', token);
                 localStorage.setItem('role',data.role);
 
-                onLoginSuccess(token, data.role);
+                onLoginSuccess(token, data.role, username);
                 setMessage({type:'success', text:`✅ ${data.role} 권한으로 로그인 성공!`});
             } else {
                 setMessage({type:'error', text:'로그인 실패: ID 또는 비밀번호를 확인해주세요'})

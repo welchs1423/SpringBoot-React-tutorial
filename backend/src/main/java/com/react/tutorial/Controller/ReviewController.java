@@ -6,12 +6,14 @@ import com.react.tutorial.entity.Review;
 import com.react.tutorial.service.ReviewService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/reviews")
@@ -40,5 +42,15 @@ public class ReviewController {
         }
 
         return ResponseEntity.ok(responseList);
+    }
+
+    @DeleteMapping("/{reviewId}")
+    public ResponseEntity<?> deleteReview(
+            @PathVariable Long reviewId,
+            Authentication authentication
+    ) {
+        String username = authentication.getName();
+        reviewService.deleteReview(reviewId, username);
+        return ResponseEntity.ok().build();
     }
 }
