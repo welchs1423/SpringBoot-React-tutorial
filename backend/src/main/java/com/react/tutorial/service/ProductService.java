@@ -24,6 +24,7 @@ public class ProductService {
                 .price(entity.getPrice())
                 .stockQuantity(entity.getStockQuantity())
                 .description(entity.getDescription())
+                .imageUrl(entity.getImageUrl())
                 .build();
     }
 
@@ -35,6 +36,7 @@ public class ProductService {
                 .price(dto.getPrice())
                 .stockQuantity(dto.getStockQuantity())
                 .description(dto.getDescription())
+                .imageUrl(dto.getImageUrl())
                 .build();
     }
 

@@ -20,9 +20,16 @@ public class ProductController {
 
     // 1. 상품 등록 (관리자만 가능)
     @PostMapping
-    @PreAuthorize("hasRole('ADMIN')") // ⭐️ 관리자(ROLE_ADMIN) 권한 필요
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ProductDTO> createProduct(@RequestBody ProductDTO dto) {
+        // 🚨 1. 프론트에서 막 도착한 데이터 확인
+        System.out.println("✅ [1. 컨트롤러 도착] 프론트에서 넘어온 데이터: " + dto);
+
         ProductDTO newProduct = productService.create(dto);
+
+        // 🚨 2. DB 저장 후 프론트로 돌려보낼 데이터 확인
+        System.out.println("✅ [2. DB 저장 완료] 프론트로 돌려보낼 데이터: " + newProduct);
+
         return ResponseEntity.ok(newProduct);
     }
 

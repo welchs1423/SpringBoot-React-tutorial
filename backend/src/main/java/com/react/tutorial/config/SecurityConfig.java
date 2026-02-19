@@ -35,7 +35,6 @@ public class SecurityConfig {
     private final JwtAccessDeniedHandler jwtAccessDeniedHandler;
     private final DebugFilter debugFilter;
 
-    // ⭐ 1. 필드 주입 대신 생성자 주입 사용
     public SecurityConfig(JwtAccessDeniedHandler jwtAccessDeniedHandler,
                           DebugFilter debugFilter) {
         this.jwtAccessDeniedHandler = jwtAccessDeniedHandler;
@@ -57,10 +56,10 @@ public class SecurityConfig {
         JwtAuthenticationFilter filter = new JwtAuthenticationFilter(jwtTokenProvider);
 
         filter.setPermittedUrls(Arrays.asList(
-            "/api/auth/login",
-            "/api/auth/register",
-            "/api/products",
-            "/api/reviews/**"
+                "/api/auth/login",
+                "/api/auth/register",
+                "/api/upload",
+                "/uploads/**"
         ));
 
         return filter;
@@ -84,8 +83,8 @@ public class SecurityConfig {
 
                 // 요청 권한 설정
                 .authorizeHttpRequests(authorize -> authorize
-                        .requestMatchers(HttpMethod.POST, "/api/auth/**").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/api/auth/**", "/public/**").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/auth/**","/api/upload").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/auth/**", "/public/**","/uploads/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/products", "/api/products/*", "/api/reviews/**").permitAll()
                         .anyRequest().authenticated()
                 )

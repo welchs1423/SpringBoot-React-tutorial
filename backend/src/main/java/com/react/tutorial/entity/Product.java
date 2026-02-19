@@ -31,4 +31,7 @@ public class Product {
     // 상품 설명
     @Column(length = 1000)
     private String description;
+
+    @Column(length = 500)
+    private String imageUrl;
 }

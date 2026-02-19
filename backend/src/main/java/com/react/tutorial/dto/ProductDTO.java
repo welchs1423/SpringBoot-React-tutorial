@@ -1,5 +1,6 @@
 package com.react.tutorial.dto;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -16,4 +17,7 @@ public class ProductDTO {
     private int price;
     private int stockQuantity;
     private String description;
+
+    @JsonProperty("imageUrl")
+    private String imageUrl;
 }

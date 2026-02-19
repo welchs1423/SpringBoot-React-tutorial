@@ -9,6 +9,7 @@ const API_BASE_URL = '';
 // 📦 상품 등록 폼 (관리자 권한 체크 로직 포함)
 const ProductForm = ({ onProductCreated, currentToken, currentRole }) => {
     const [formData, setFormData] = useState({ name: '', price: 0, stockQuantity: 0, description: '' });
+    const [selectedFile, setSelectedFile] = useState(null);
     const [submitError, setSubmitError] = useState(null);
     const [submitSuccess, setSubmitSuccess] = useState(false);
 
@@ -23,19 +24,55 @@ const ProductForm = ({ onProductCreated, currentToken, currentRole }) => {
         }));
     };
 
+    const handleFileChange = (e) => {
+        if (e.target.files && e.target.files[0]){
+            setSelectedFile(e.target.files[0]);
+        }
+    }
+
     const handleSubmit = async (e) => {
         e.preventDefault();
         setSubmitError(null); setSubmitSuccess(false);
+
+        let uploadedImageUrl = '';
+
         try {
+
+            if(selectedFile){
+                const fileData = new FormData();
+                fileData.append('file',selectedFile);
+
+                const uploadRes = await fetch(`${API_BASE_URL}/api/upload`,{
+                    method:'POST',
+                    body:fileData,
+                });
+
+                if(!uploadRes.ok) throw new Error("이미지 업로드 실패");
+                const uploadResult = await uploadRes.json();
+                uploadedImageUrl = uploadResult.imageUrl;
+            }
+
+            const productData = {
+                ...formData,
+                imageUrl: uploadedImageUrl
+            };
+
+            console.log("🚀 서버로 쏠 데이터 확인:", productData);
+
             const response = await fetch(`${API_BASE_URL}/api/products`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${currentToken}` },
-                body: JSON.stringify(formData),
+                body: JSON.stringify(productData),
             });
+
             if (!response.ok) throw new Error("상품 등록 실패");
             const newProduct = await response.json();
+
             setSubmitSuccess(true);
             setFormData({ name: '', price: 0, stockQuantity: 0, description: '' });
+            setSelectedFile(null);
+            document.getElementById('fileInput').value = "";
+
             onProductCreated(newProduct);
         } catch (err) { setSubmitError(err.message); }
     };
@@ -50,8 +87,12 @@ const ProductForm = ({ onProductCreated, currentToken, currentRole }) => {
                 <label>가격:</label><input name="price" type="number" value={formData.price} onChange={handleChange} required />
                 <label>재고:</label><input name="stockQuantity" type="number" value={formData.stockQuantity} onChange={handleChange} required />
                 <label>설명:</label><textarea name="description" value={formData.description} onChange={handleChange} />
+
+                <label>사진:</label><input type="file" id="fileInput" accept="image/*" onChange={handleFileChange}/>
+
                 <div style={{ gridColumn: '1 / 3', textAlign: 'right' }}><button type="submit">등록하기</button></div>
             </form>
+            {submitError && <p style={{ color: 'red' }}>❌ {submitError}</p>}
             {submitSuccess && <p style={{ color: 'green' }}>✅ 등록 성공!</p>}
         </div>
     );
@@ -186,6 +227,19 @@ function App() {
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '20px' }}>
                 {filteredProducts.map(product => (
                     <div key={product.id} className="product-card" style={{ border: '1px solid #ddd', padding: '20px', borderRadius: '12px' }}>
+
+                        {product.imageUrl ? (
+                            <img
+                                src={`${API_BASE_URL}${product.imageUrl}`}
+                                alt={product.name}
+                                style={{ width:'100%', height:'200px', objectFit: 'cover', borderRadius:'8px', marginBottom:'10px'}}
+                            />
+                        ) : (
+                            <div style={{ width:'100%', height:'200px', backgroundColor:'#eee', borderRadius:'8px',marginBottom:'10px', display:'flex', alignItems: 'center', justifyContent: 'center', color:'#999'}}>
+                                이미지 없음
+                            </div>
+                        )}
+
                         <h4>{product.name}</h4>
                         <p>{product.price.toLocaleString()}원</p>
                         <p style={{ color: product.stockQuantity > 0 ? 'green' : 'red' }}>
