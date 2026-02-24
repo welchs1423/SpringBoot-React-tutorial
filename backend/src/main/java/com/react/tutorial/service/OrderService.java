@@ -9,9 +9,9 @@ import com.react.tutorial.repository.CartItemRepository;
 import com.react.tutorial.repository.DeliveryAddressRepository;
 import com.react.tutorial.repository.OrderRepository;
 import com.react.tutorial.repository.ProductRepository;
-import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -136,13 +136,11 @@ public class OrderService {
                             item.getOrderPrice(),
                             item.getQuantity()
                         )).collect(Collectors.toList()))
+                .cancelReason(order.getCancelReason())
                 .build()
         ).collect(Collectors.toList());
     }
 
-    /**
-     * 특정 주문 ID로 상세 정보를 조회합니다 (팝업용)
-     */
     public OrderResponseDTO getOrderDetail(Long orderId, User user) {
         // 1. 주문 아이디로 주문을 찾되, 없으면 에러 발생
         Order order = orderRepository.findById(orderId)
@@ -171,5 +169,24 @@ public class OrderService {
                                 item.getQuantity()
                         )).collect(Collectors.toList()))
                 .build();
+    }
+
+    @Transactional
+    public void cancelOrder(Long orderId, String reason, User user){
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new IllegalArgumentException("주문을 찾을 수 없습니다."));
+
+        if (!order.getUser().getId().equals(user.getId())) {
+            throw new IllegalStateException("권한이 없습니다.");
+        }
+
+        order.setStatus(OrderStatus.CANCELED);  // 상태 변경
+        order.setCancelReason(reason);          // 사유 저장
+
+        // 상품 재고 복구 로직 (옵션: 취소 시 재고를 다시 늘려줍니다)
+        for(OrderItem item : order.getOrderItems()){
+            Product product = item.getProduct();
+            product.setStockQuantity(product.getStockQuantity() + item.getQuantity());
+        }
     }
 }

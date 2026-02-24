@@ -5,6 +5,7 @@ import com.react.tutorial.dto.OrderResponseDTO;
 import com.react.tutorial.entity.Order;
 import com.react.tutorial.entity.User;
 import com.react.tutorial.repository.UserRepository;
+import com.react.tutorial.service.CustomUserDetailsService;
 import com.react.tutorial.service.OrderService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -13,8 +14,8 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
-import java.awt.desktop.UserSessionEvent;
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/orders")
@@ -23,6 +24,7 @@ public class OrderController {
 
     private final OrderService orderService;
     private final UserRepository userRepository;
+    private final CustomUserDetailsService customUserDetailsService;
 
     /**
      * 장바구니 상품을 기반으로 주문을 생성합니다.
@@ -85,5 +87,16 @@ public class OrderController {
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body("주문 상세 정보를 찾을 수 없습니다: " + e.getMessage());
         }
+    }
+
+    @PatchMapping("/{id}/cancel")
+    public ResponseEntity<Void> cancelOrder(
+            @PathVariable("id") Long orderId,
+            @RequestBody Map<String, String> payload,
+            @AuthenticationPrincipal UserDetails userDetails) {
+
+        User user = customUserDetailsService.loadUserEntityByUsername(userDetails.getUsername());
+        orderService.cancelOrder(orderId, payload.get("reason"), user);
+        return ResponseEntity.ok().build();
     }
 }

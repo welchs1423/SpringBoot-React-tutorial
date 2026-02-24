@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import StarRating from './StarRating';
 
 const API_BASE_URL = 'http://localhost:8080';
 
@@ -11,6 +12,10 @@ const OrderList = ({ userToken, updateFlag, currentUserName }) => {
     const [reviewsMap, setReviewsMap] = useState({});
     const [editingReviewId, setEditingReviewId] = useState(null);
     const [editReviewText, setEditReviewText] = useState("");
+    const [reviewRating, setReviewRating] = useState(5);
+    const [cancelModalOpen, setCancelModalOpen] = useState(false);
+    const [targetCancelOrderId, setTargetCancelOrderId] = useState(null);
+    const [cancelReason, setCancelReason] = useState("");
 
     const fetchOrders = async () => {
         if (!userToken) return;
@@ -61,10 +66,11 @@ const OrderList = ({ userToken, updateFlag, currentUserName }) => {
                     'Authorization': `Bearer ${userToken}`,
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({ productId: pId, content: reviewText, rating: 5 })
+                body: JSON.stringify({ productId: pId, content: reviewText, rating: reviewRating })
             });
             if (response.ok) {
                 setReviewText("");
+                setReviewRating(5);
                 loadReviews(pId);
             }
         } catch (error) {
@@ -81,7 +87,7 @@ const OrderList = ({ userToken, updateFlag, currentUserName }) => {
                     'Authorization': `Bearer ${userToken}`,
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({ content: editReviewText, rating: 5 })
+                body: JSON.stringify({ content: editReviewText, rating: reviewRating })
             });
             if (response.ok) {
                 setEditingReviewId(null);
@@ -109,9 +115,47 @@ const OrderList = ({ userToken, updateFlag, currentUserName }) => {
         }
     };
 
+    const handleCancelSubmit = async () => {
+        if (!cancelReason.trim()) {
+            alert("주문 취소 사유를 입력해주세요.");
+            return;
+        }
+
+        if (!window.confirm("정말로 이 주문을 취소하시겠습니까?")) return;
+
+        try {
+            const response = await fetch(`${API_BASE_URL}/api/orders/${targetCancelOrderId}/cancel`, {
+                method: 'PATCH',
+                headers: {
+                    'Authorization': `Bearer ${userToken}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ reason: cancelReason })
+            });
+
+            if (response.ok) {
+                alert("주문이 성공적으로 취소되었습니다.");
+                setCancelModalOpen(false);
+                setCancelReason("");
+                setSelectedOrder(null);
+                fetchOrders();
+            } else {
+                alert("취소 처리에 실패했습니다.");
+            }
+        } catch (error) {
+            console.error("주문 취소 에러:", error);
+        }
+    };
+
+    // 🟢 별점 출력을 위한 안전한 함수 (오류 방지)
+    const renderStars = (rating) => {
+        const validRating = Math.max(0, Math.min(5, Number(rating) || 0));
+        return "★".repeat(validRating) + "☆".repeat(5 - validRating);
+    };
+
     useEffect(() => { fetchOrders(); }, [userToken, updateFlag]);
 
-    if (!userToken) return <div style={{padding:'20px'}}>로그인이 필요합니다.</div>;
+    if (!userToken) return <div style={{ padding: '20px' }}>로그인이 필요합니다.</div>;
 
     return (
         <div style={containerStyle}>
@@ -133,7 +177,7 @@ const OrderList = ({ userToken, updateFlag, currentUserName }) => {
             {selectedOrder && (
                 <div style={modalOverlayStyle}>
                     <div style={modalContentStyle}>
-                        <h2 style={{margin:'0 0 20px 0'}}>주문 상세</h2>
+                        <h2 style={{ margin: '0 0 20px 0' }}>주문 상세</h2>
                         <div style={scrollAreaStyle}>
                             {selectedOrder.orderItems?.map((item, idx) => {
                                 const pId = String(item.productId);
@@ -149,6 +193,9 @@ const OrderList = ({ userToken, updateFlag, currentUserName }) => {
 
                                         {selectedProductId === pId && (
                                             <div style={reviewSectionStyle}>
+                                                <div style={{ marginBottom: '10px' }}>
+                                                    <StarRating rating={reviewRating} setRating={setReviewRating} />
+                                                </div>
                                                 <div style={inputGroupStyle}>
                                                     <input
                                                         value={reviewText}
@@ -176,8 +223,13 @@ const OrderList = ({ userToken, updateFlag, currentUserName }) => {
                                                                         <button onClick={() => setEditingReviewId(null)} style={{ ...delBtnStyle, background: '#666' }}>취소</button>
                                                                     </div>
                                                                 ) : (
-                                                                    <>
-                                                                        <span><strong>{rev.username}</strong>: {rev.content}</span>
+                                                                    <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
+                                                                        <div>
+                                                                            <div style={{ color: '#ffc107', fontSize: '14px', marginBottom: '2px' }}>
+                                                                                {renderStars(rev.rating)}
+                                                                            </div>
+                                                                            <span><strong>{rev.username}</strong>: {rev.content}</span>
+                                                                        </div>
                                                                         <div style={{ display: 'flex', gap: '3px' }}>
                                                                             {rev.username === currentUserName && (
                                                                                 <>
@@ -189,7 +241,7 @@ const OrderList = ({ userToken, updateFlag, currentUserName }) => {
                                                                                 </>
                                                                             )}
                                                                         </div>
-                                                                    </>
+                                                                    </div>
                                                                 )}
                                                             </div>
                                                         );
@@ -203,10 +255,48 @@ const OrderList = ({ userToken, updateFlag, currentUserName }) => {
                         </div>
                         <div style={modalFooterStyle}>
                             <strong>총 합계: {selectedOrder.totalPrice.toLocaleString()}원</strong>
-                            <button onClick={() => {
-                                setSelectedOrder(null);
-                                setSelectedProductId(null);
-                            }} style={closeBtnStyle}>닫기</button>
+                            <div style={{ display: 'flex', gap: '10px' }}>
+                                {selectedOrder.status !== 'CANCELED' && (
+                                    <button
+                                        onClick={() => {
+                                            setTargetCancelOrderId(selectedOrder.id);
+                                            setCancelModalOpen(true);
+                                        }}
+                                        style={{ ...closeBtnStyle, background: '#ff4d4f' }}
+                                    >
+                                        주문 취소
+                                    </button>
+                                )}
+                                <button onClick={() => {
+                                    setSelectedOrder(null);
+                                    setSelectedProductId(null);
+                                }} style={closeBtnStyle}>닫기</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {cancelModalOpen && (
+                <div style={{ ...modalOverlayStyle, zIndex: 1100 }}>
+                    <div style={modalContentStyle}>
+                        <h3 style={{ marginTop: 0, color: '#ff4d4f' }}>주문 취소</h3>
+                        <p style={{ fontSize: '14px', marginBottom: '10px' }}>
+                            취소 사유를 입력해 주세요.
+                        </p>
+                        <textarea
+                            style={{ width: '100%', height: '80px', padding: '10px', marginBottom: '15px', borderRadius: '5px', border: '1px solid #ccc', resize: 'none' }}
+                            placeholder="예: 단순 변심, 배송 지연 등"
+                            value={cancelReason}
+                            onChange={(e) => setCancelReason(e.target.value)}
+                        />
+                        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+                            <button onClick={() => setCancelModalOpen(false)} style={{ ...closeBtnStyle, background: '#666' }}>
+                                닫기
+                            </button>
+                            <button onClick={handleCancelSubmit} style={{ ...submitBtnStyle, background: '#ff4d4f' }}>
+                                취소 완료
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -215,7 +305,6 @@ const OrderList = ({ userToken, updateFlag, currentUserName }) => {
     );
 };
 
-// --- Styles (동일) ---
 const containerStyle = { padding: '20px', maxWidth: '800px', margin: '0 auto' };
 const gridStyle = { display: 'grid', gap: '15px' };
 const cardStyle = { padding: '15px', border: '1px solid #eee', borderRadius: '12px', cursor: 'pointer', background: '#fff', boxShadow: '0 2px 5px rgba(0,0,0,0.05)' };

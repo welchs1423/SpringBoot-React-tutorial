@@ -20,4 +20,5 @@ public class OrderResponseDTO {
     private int totalPrice;
     private String status;
     private List<OrderItemDTO> orderItems;
+    private String cancelReason;
 }
