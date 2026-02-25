@@ -6,6 +6,9 @@ import com.react.tutorial.repository.ProductRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -53,6 +56,7 @@ public class ProductService {
     // 2. 전체 상품 목록 조회
     public List<ProductDTO> findAll() {
         return productRepository.findAll().stream()
+                .filter(product -> !product.isDeleted())
                 .map(this::toDTO)
                 .collect(Collectors.toList());
     }
@@ -70,6 +74,13 @@ public class ProductService {
         Product product = productRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Invalid product ID: " + id));
 
+        if(dto.getImageUrl() != null && !dto.getImageUrl().equals(product.getImageUrl())) {
+            // 기존 찌꺼기 이미지 파일 삭제
+            deleteImageFile(product.getImageUrl());
+            // 새 이미지 주소로 교체
+            product.setImageUrl(dto.getImageUrl());
+        }
+
         // 데이터 업데이트
         product.setName(dto.getName());
         product.setPrice(dto.getPrice());
@@ -84,6 +95,31 @@ public class ProductService {
     // 5. 상품 삭제 (관리자 권한 필요)
     @Transactional
     public void delete(Long id) {
-        productRepository.deleteById(id);
+        Product product = productRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("상품 없음"));
+
+        product.setDeleted(true);
+
+        deleteImageFile(product.getImageUrl());
+        product.setImageUrl(null); // DB에서도 이미지 경로 삭제
+    }
+
+    private void deleteImageFile(String imageUrl){
+        if (imageUrl == null || !imageUrl.startsWith("/uploads/")){
+            return;
+        }
+
+        try {
+            String filename = imageUrl.substring("/uploads/".length());
+
+            Path filePath = Paths.get("uploads", filename);
+
+            if(Files.exists(filePath)){
+                Files.delete(filePath);
+                System.out.println("기존 찌꺼기 이미지 파일 삭제 완료: " + filename);
+            }
+        } catch (Exception e){
+            System.err.println("이미지 파일 삭제 실패: " + e.getMessage());
+        }
     }
 }

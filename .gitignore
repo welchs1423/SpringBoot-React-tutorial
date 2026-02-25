@@ -1,0 +1,27 @@
+# Root .gitignore
+
+# 1. OS & IDE
+.DS_Store
+.idea/
+.vscode/
+*.swp
+
+# 2. Backend (Java/Spring/Gradle)
+backend/.gradle/
+backend/build/
+backend/bin/
+backend/.settings/
+backend/.classpath/
+backend/.project/
+
+# 3. Frontend (React/Node)
+frontend/node_modules/
+frontend/dist/
+frontend/.eslintcache
+frontend/*.log
+
+# 4. Uploads
+uploads/
+
+# backend/src/main/resources/ 내의 설정 파일 제외
+backend/src/main/resources/application.properties

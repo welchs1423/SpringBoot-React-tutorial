@@ -2,9 +2,10 @@ import React, { useState, useEffect } from 'react';
 import CartList from './CartList';
 import OrderList from './OrderList';
 import AuthManager from './AuthManager';
+import ProductManager from './ProductManager';
 import './App.css';
 
-const API_BASE_URL = '';
+const API_BASE_URL = 'http://localhost:8080';
 
 // 📦 상품 등록 폼 (관리자 권한 체크 로직 포함)
 const ProductForm = ({ onProductCreated, currentToken, currentRole }) => {
@@ -25,29 +26,29 @@ const ProductForm = ({ onProductCreated, currentToken, currentRole }) => {
     };
 
     const handleFileChange = (e) => {
-        if (e.target.files && e.target.files[0]){
+        if (e.target.files && e.target.files[0]) {
             setSelectedFile(e.target.files[0]);
         }
     }
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        setSubmitError(null); setSubmitSuccess(false);
+        setSubmitError(null); 
+        setSubmitSuccess(false);
 
         let uploadedImageUrl = '';
 
         try {
-
-            if(selectedFile){
+            if (selectedFile) {
                 const fileData = new FormData();
-                fileData.append('file',selectedFile);
+                fileData.append('file', selectedFile);
 
-                const uploadRes = await fetch(`${API_BASE_URL}/api/upload`,{
-                    method:'POST',
-                    body:fileData,
+                const uploadRes = await fetch(`${API_BASE_URL}/api/upload`, {
+                    method: 'POST',
+                    body: fileData,
                 });
 
-                if(!uploadRes.ok) throw new Error("이미지 업로드 실패");
+                if (!uploadRes.ok) throw new Error("이미지 업로드 실패");
                 const uploadResult = await uploadRes.json();
                 uploadedImageUrl = uploadResult.imageUrl;
             }
@@ -57,48 +58,65 @@ const ProductForm = ({ onProductCreated, currentToken, currentRole }) => {
                 imageUrl: uploadedImageUrl
             };
 
-            console.log("🚀 서버로 쏠 데이터 확인:", productData);
-
             const response = await fetch(`${API_BASE_URL}/api/products`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${currentToken}` },
                 body: JSON.stringify(productData),
             });
 
-            if (!response.ok) throw new Error("상품 등록 실패");
+            if (!response.ok) {
+                const errorMsg = await response.text();
+                throw new Error(errorMsg || "상품 등록에 실패했습니다.");
+            }
             const newProduct = await response.json();
+            alert("🎉 상품이 성공적으로 등록되었습니다!");
 
-            setSubmitSuccess(true);
             setFormData({ name: '', price: 0, stockQuantity: 0, description: '' });
-            setSelectedFile(null);
-            document.getElementById('fileInput').value = "";
 
-            onProductCreated(newProduct);
+            setSelectedFile(null);
+
+            const fileInput = document.getElementById('fileInput');
+            if(fileInput) fileInput.value = "";
+            
+            onProductCreated();
         } catch (err) { setSubmitError(err.message); }
     };
 
-    if (!hasAdminRole) return <div className="admin-notice">⚠️ 상품 등록은 관리자만 가능합니다.</div>;
+    if (!hasAdminRole) return <div className="admin-notice" style={{ padding: '10px', background: '#ffeeba', borderRadius: '8px', color: '#856404', marginBottom: '20px' }}>⚠️ 상품 등록은 관리자만 가능합니다.</div>;
 
     return (
-        <div className="product-form-container" style={{ border: '1px solid #ccc', padding: '20px', marginBottom: '30px' }}>
-            <h2>📦 새 상품 등록</h2>
-            <form onSubmit={handleSubmit} style={{ display: 'grid', gridTemplateColumns: '100px 1fr', gap: '10px' }}>
-                <label>상품명:</label><input name="name" value={formData.name} onChange={handleChange} required />
-                <label>가격:</label><input name="price" type="number" value={formData.price} onChange={handleChange} required />
-                <label>재고:</label><input name="stockQuantity" type="number" value={formData.stockQuantity} onChange={handleChange} required />
-                <label>설명:</label><textarea name="description" value={formData.description} onChange={handleChange} />
-
-                <label>사진:</label><input type="file" id="fileInput" accept="image/*" onChange={handleFileChange}/>
-
-                <div style={{ gridColumn: '1 / 3', textAlign: 'right' }}><button type="submit">등록하기</button></div>
+        <div style={{ background: '#fff', padding: '20px', borderRadius: '12px', marginBottom: '20px', border: '1px solid #ddd', color: '#333' }}>
+            <h3 style={{ color: '#333', marginTop: 0 }}>📦 새 상품 등록</h3>
+            <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                <label style={{ fontSize: '12px', fontWeight: 'bold' }}>상품명</label>
+                <input type="text" name="name" value={formData.name} onChange={handleChange} style={inputStyle} required />
+                
+                <label style={{ fontSize: '12px', fontWeight: 'bold' }}>가격</label>
+                <input type="number" name="price" value={formData.price} onChange={handleChange} style={inputStyle} required />
+                
+                <label style={{ fontSize: '12px', fontWeight: 'bold' }}>재고</label>
+                <input type="number" name="stockQuantity" value={formData.stockQuantity} onChange={handleChange} style={inputStyle} required />
+                
+                <label style={{ fontSize: '12px', fontWeight: 'bold' }}>설명</label>
+                <textarea name="description" value={formData.description} onChange={handleChange} style={{ ...inputStyle, height: '60px' }} />
+                
+                <input 
+                    type="file" 
+                    id="fileInput"
+                    onChange={(e) => setSelectedFile(e.target.files[0])} 
+                    style={{ marginTop: '10px', color: '#333' }} 
+                />
+                
+                <button type="submit" style={{ padding: '12px', background: '#007bff', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', marginTop: '10px' }}>
+                    🚀 상품 등록하기
+                </button>
             </form>
-            {submitError && <p style={{ color: 'red' }}>❌ {submitError}</p>}
-            {submitSuccess && <p style={{ color: 'green' }}>✅ 등록 성공!</p>}
         </div>
     );
 };
 
 function App() {
+    const [view, setView] = useState('main'); // 🟢 최상단 화면 탭 상태 관리 추가
     const [products, setProducts] = useState([]);
     const [searchTerm, setSearchTerm] = useState("");
     const [loading, setLoading] = useState(true);
@@ -109,7 +127,7 @@ function App() {
     const [cartMessage, setCartMessage] = useState(null);
     const [cartUpdateFlag, setCartUpdateFlag] = useState(0);
 
-    // 상품 목록 가져오기 + 더미 데이터 삽입
+    // 상품 목록 가져오기
     const fetchProducts = async () => {
         setLoading(true);
         try {
@@ -119,10 +137,9 @@ function App() {
                 data = await response.json();
             }
 
-            // 🛠️ 테스트용 품절 상품 강제 삽입 (3번 케이스 확인용)
             const testData = [
                 ...data,
-                { id: 999, name: "[품절테스트] 품절된 상품", price: 10000, stockQuantity: 0, description: "재고가 0개인 상품입니다." }
+                { id: 999, name: "[품절테스트] 품절된 상품", price: 10000, stockQuantity: 0, description: "재고가 0개인 상품입니다.", imageUrl: null }
             ];
             setProducts(testData);
             setError(null);
@@ -157,6 +174,7 @@ function App() {
         sessionStorage.clear();
         setUserToken(null); setUserRole(null);
         alert("로그아웃 되었습니다.");
+        setView('main'); // 로그아웃 시 메인 화면으로 이동
     };
 
     useEffect(() => {
@@ -174,95 +192,118 @@ function App() {
     const filteredProducts = products.filter(p => p.name.toLowerCase().includes(searchTerm.toLowerCase()));
 
     return (
-        <div className="container" style={{ maxWidth: '800px', margin: '0 auto', padding: '20px' }}>
-            <h1>🛍️ 쇼핑몰 서비스</h1>
+        <div className="container" style={{ maxWidth: '900px', margin: '0 auto', padding: '20px' }}>
+            {/* 🟢 최상단 네비게이션 (탭 메뉴) */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', borderBottom: '2px solid #eee', paddingBottom: '10px' }}>
+                <h1 style={{ margin: 0 }}>🛍️ React-Spring Mall</h1>
+                <nav style={{ display: 'flex', gap: '10px' }}>
+                    <button onClick={() => setView('main')} style={navBtnStyle(view === 'main')}>🏠 홈 (쇼핑)</button>
+                    {userToken && (
+                        <button onClick={() => setView('orders')} style={navBtnStyle(view === 'orders')}>📦 내 주문/리뷰</button>
+                    )}
+                    {userToken && (
+                        <button onClick={() => setView('admin')} style={navBtnStyle(view === 'admin', true)}>⚙️ 상품 관리(관리자)</button>
+                    )}
+                </nav>
+            </div>
+
             <AuthManager
                 onLoginSuccess={(token, role, username) => {
                     setUserToken(token);
                     setUserRole(role);
                     setCurrentUserName(username);
-
                     sessionStorage.setItem('token', token);
                     sessionStorage.setItem('role', role);
                     sessionStorage.setItem('username', username);
-
-                    console.log("로그인 성공! 유저:", username);
                 }}
                 onLogout={handleLogout}
             />
 
-            <ProductForm onProductCreated={(p) => setProducts([...products, p])} currentToken={userToken} currentRole={userRole} />
+            {/* 🟢 화면 전환 로직 */}
+            {view === 'admin' && (
+                <>
+                    <ProductForm 
+                        onProductCreated={() => {
+                            console.log("새 상품 등록 감지!");
+                            fetchProducts(); // App의 products 상태 업데이트
+                        }} 
+                        currentToken={userToken} 
+                        currentRole={userRole} 
+                    />
+                    <ProductManager 
+                        key={products.length} 
+                        userToken={userToken} 
+                    />
+                </>
+            )}
 
-            <hr />
-            <CartList userToken={userToken} isLoggedIn={!!userToken} onOrderSuccess={() => setCartUpdateFlag(f => f+1)} cartUpdateFlag={cartUpdateFlag} />
-            <OrderList
-                userToken={userToken}
-                updateFlag={cartUpdateFlag}
-                userRole={userRole}
-                currentUserName={currentUserName}
-            />
+            {view === 'orders' && (
+                <OrderList userToken={userToken} updateFlag={cartUpdateFlag} currentUserName={currentUserName} />
+            )}
 
-            <hr />
-            {/* 🔍 검색창 영역 */}
-            <div style={{ marginBottom: '20px', padding: '15px', backgroundColor: '#f8f9fa', borderRadius: '10px' }}>
-                <input
-                    type="text"
-                    placeholder="상품 이름 검색..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    style={{
-                        width: '100%',
-                        padding: '12px',
-                        borderRadius: '8px',
-                        border: '1px solid #ddd',
-                        boxSizing: 'border-box'
-                    }}
-                />
-                {searchTerm && filteredProducts.length === 0 && (
-                    <p style={{ marginTop: '10px', color: '#666' }}>🔍 "{searchTerm}"에 대한 검색 결과가 없습니다.</p>
-                )}
-            </div>
+            {view === 'main' && (
+                <>
+                    <CartList userToken={userToken} isLoggedIn={!!userToken} onOrderSuccess={() => setCartUpdateFlag(f => f + 1)} cartUpdateFlag={cartUpdateFlag} />
 
-            <h3>📝 등록된 상품 목록</h3>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '20px' }}>
-                {filteredProducts.map(product => (
-                    <div key={product.id} className="product-card" style={{ border: '1px solid #ddd', padding: '20px', borderRadius: '12px' }}>
-
-                        {product.imageUrl ? (
-                            <img
-                                src={`${API_BASE_URL}${product.imageUrl}`}
-                                alt={product.name}
-                                style={{ width:'100%', height:'200px', objectFit: 'cover', borderRadius:'8px', marginBottom:'10px'}}
-                            />
-                        ) : (
-                            <div style={{ width:'100%', height:'200px', backgroundColor:'#eee', borderRadius:'8px',marginBottom:'10px', display:'flex', alignItems: 'center', justifyContent: 'center', color:'#999'}}>
-                                이미지 없음
-                            </div>
-                        )}
-
-                        <h4>{product.name}</h4>
-                        <p>{product.price.toLocaleString()}원</p>
-                        <p style={{ color: product.stockQuantity > 0 ? 'green' : 'red' }}>
-                            {product.stockQuantity > 0 ? `재고: ${product.stockQuantity}` : "품절"}
-                        </p>
-                        <button
-                            disabled={product.stockQuantity <= 0}
-                            onClick={() => handleAddToCart(product.id)}
-                            style={{ width: '100%', padding: '10px', backgroundColor: product.stockQuantity > 0 ? '#007bff' : '#ccc', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer' }}
-                        >
-                            {product.stockQuantity > 0 ? '🛒 담기' : '품절된 상품'}
-                        </button>
+                    <div style={{ marginBottom: '20px', padding: '15px', backgroundColor: '#f8f9fa', borderRadius: '10px' }}>
+                        <input
+                            type="text"
+                            placeholder="상품 이름 검색..."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid #ddd', boxSizing: 'border-box' }}
+                        />
                     </div>
-                ))}
-            </div>
 
+                    <h3>📝 전체 상품 목록</h3>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '20px' }}>
+                        {filteredProducts.map(product => (
+                            <div key={`prod-${product.id}`} className="product-card" style={{ border: '1px solid #ddd', padding: '20px', borderRadius: '12px', background: '#fff', color: '#333' }}>
+                                {product.imageUrl ? (
+                                    <img src={`${API_BASE_URL}${product.imageUrl}`} alt={product.name} style={{ width: '100%', height: '200px', objectFit: 'cover', borderRadius: '8px', marginBottom: '10px' }} />
+                                ) : (
+                                    <div style={{ width: '100%', height: '200px', backgroundColor: '#eee', borderRadius: '8px', marginBottom: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#999' }}>이미지 없음</div>
+                                )}
+                                <h4>{product.name}</h4>
+                                <p>{product.price.toLocaleString()}원</p>
+                                <p style={{ color: product.stockQuantity > 0 ? 'green' : 'red' }}>
+                                    {product.stockQuantity > 0 ? `재고: ${product.stockQuantity}` : "품절"}
+                                </p>
+                                <button
+                                    disabled={product.stockQuantity <= 0}
+                                    onClick={() => handleAddToCart(product.id)}
+                                    style={{ width: '100%', padding: '10px', backgroundColor: product.stockQuantity > 0 ? '#007bff' : '#ccc', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer' }}
+                                >
+                                    {product.stockQuantity > 0 ? '🛒 담기' : '품절된 상품'}
+                                </button>
+                            </div>
+                        ))}
+                    </div>
+                </>
+            )}
+
+            {/* 장바구니 알림 모달 */}
             {cartMessage && (
-                <div style={{ position: 'fixed', bottom: '20px', right: '20px', padding: '15px 25px', backgroundColor: cartMessage.type === 'error' ? '#ff4d4d' : '#28a745', color: '#fff', borderRadius: '8px' }}>
+                <div style={{ position: 'fixed', bottom: '20px', right: '20px', padding: '15px 25px', backgroundColor: cartMessage.type === 'error' ? '#ff4d4d' : '#28a745', color: '#fff', borderRadius: '8px', zIndex: 9999 }}>
                     {cartMessage.text}
                 </div>
             )}
         </div>
     );
 }
+
+const inputStyle = { padding: '10px', borderRadius: '6px', border: '1px solid #ccc', background: '#fff', color: '#333' };
+
+// 🟢 네비게이션 버튼 스타일 헬퍼
+const navBtnStyle = (isActive, isAdmin = false) => ({
+    padding: '8px 16px',
+    border: 'none',
+    borderRadius: '20px',
+    cursor: 'pointer',
+    fontWeight: 'bold',
+    background: isActive ? (isAdmin ? '#dc3545' : '#007bff') : '#e9ecef',
+    color: isActive ? '#fff' : '#495057',
+    transition: 'all 0.2s'
+});
 
 export default App;
