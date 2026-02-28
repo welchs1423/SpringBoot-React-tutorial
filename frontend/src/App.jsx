@@ -3,6 +3,7 @@ import CartList from './CartList';
 import OrderList from './OrderList';
 import AuthManager from './AuthManager';
 import ProductManager from './ProductManager';
+import CheckoutTest from './CheckoutTest';
 import './App.css';
 
 const API_BASE_URL = 'http://localhost:8080';
@@ -177,7 +178,7 @@ function App() {
         setView('main'); // 로그아웃 시 메인 화면으로 이동
     };
 
-    useEffect(() => {
+useEffect(() => {
         const savedToken = sessionStorage.getItem('token');
         const savedRole = sessionStorage.getItem('role');
         const savedName = sessionStorage.getItem('username');
@@ -187,6 +188,20 @@ function App() {
             setCurrentUserName(savedName);
         }
         fetchProducts();
+
+        // 툐스 결제 성공 URL 파라미터 가로채기
+        const urlParams = new URLSearchParams(window.location.search);
+        const paymentKey = urlParams.get("paymentKey");
+        const orderId = urlParams.get("orderId");
+        const amount = urlParams.get("amount");
+
+        if (paymentKey && orderId && amount) {
+            console.log("결제 성공 데이터:", { paymentKey, orderId, amount });
+            alert("결제 가승인 성공! 금액: " + amount + "원\n이제 백엔드 최종 승인 로직을 탑재할 차례입니다.");
+            
+            // 처리 후 지저분한 URL을 깔끔하게 정리해줍니다.
+            window.history.replaceState({}, document.title, "/");
+        }
     }, []);
 
     const filteredProducts = products.filter(p => p.name.toLowerCase().includes(searchTerm.toLowerCase()));
@@ -204,6 +219,7 @@ function App() {
                     {userToken && (
                         <button onClick={() => setView('admin')} style={navBtnStyle(view === 'admin', true)}>⚙️ 상품 관리(관리자)</button>
                     )}
+                    <button onClick={() => setView('checkout')} style={navBtnStyle(view === 'checkout')}>💳 결제 테스트</button>
                 </nav>
             </div>
 
@@ -280,6 +296,10 @@ function App() {
                         ))}
                     </div>
                 </>
+            )}
+
+            {view === 'checkout' && (
+                <CheckoutTest />
             )}
 
             {/* 장바구니 알림 모달 */}

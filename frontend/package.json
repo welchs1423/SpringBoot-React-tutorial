@@ -10,6 +10,8 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@tosspayments/payment-sdk": "^1.9.2",
+    "@tosspayments/payment-widget-sdk": "^0.12.1",
     "react": "^19.1.1",
     "react-dom": "^19.1.1"
   },
