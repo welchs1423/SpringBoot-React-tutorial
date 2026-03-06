@@ -11,6 +11,12 @@ Spring Boot와 React를 이용한 풀스택 쇼핑몰 구축 및 실무 환경 �
 
 ---
 
+## 🛠 기술 스택
+* **Backend**: Java 17, Spring Boot 3.4.x, Spring Data JPA, MySQL
+* **Frontend**: React, Vite, CSS3
+
+---
+
 ## ⚙️ 환경 설정 로그
 
 ### [결제 시스템 인프라 레시피]
@@ -80,6 +86,16 @@ Spring Boot와 React를 이용한 풀스택 쇼핑몰 구축 및 실무 환경 �
 ## 업데이트 기록
 
 ## 최근 업데이트 내역
+
+### 🚀 [2026-03-07] 결제 시스템 및 재고 관리 로직 완비
+1.  **결제 최종 승인 API 구현**
+  * Toss Payments와의 서버 간 통신을 통해 결제 무결성 검증 완료.
+2.  **비즈니스 로직 고도화**
+  * `OrderStatus` Enum에 `PAID` 상태 추가 및 결제 완료 시 상태 변경 로직 구현.
+  * 결제 성공 시 상품 테이블(`Product`)의 물리적 재고(`stockQuantity`) 자동 차감 로직 연동.
+3.  **트러블슈팅**
+  * React StrictMode로 인한 API 중복 호출 이슈를 `main.jsx` 수정으로 해결.
+  * JPA 순환 참조 에러를 `@JsonIgnore`로 해결하여 데이터 전송 최적화.
 
 ### 🚀 [2026-03-01] 결제 시스템 프론트엔드 연동 완성
 1.  **토스페이먼츠 일반 결제창 구현**

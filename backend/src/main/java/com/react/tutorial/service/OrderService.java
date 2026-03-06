@@ -12,6 +12,7 @@ import com.react.tutorial.repository.ProductRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.react.tutorial.dto.OrderStatus;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -188,5 +189,33 @@ public class OrderService {
             Product product = item.getProduct();
             product.setStockQuantity(product.getStockQuantity() + item.getQuantity());
         }
+    }
+
+    @Transactional
+    public void completePayment(Long orderId) {
+        // 1. 주문 가져오기
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new RuntimeException("주문을 찾을 수 없습니다. ID: " + orderId));
+
+        // 2. 주문 상태를 결제 완료로 변경 (OrderStatus Enum 사용!)
+        order.setStatus(OrderStatus.PAID);
+
+        // 3. 주문한 상품들의 재고 차감
+        for (OrderItem item : order.getOrderItems()) {
+            Product product = item.getProduct();
+            int currentStock = product.getStockQuantity();
+            int orderQuantity = item.getQuantity();
+
+            if (currentStock < orderQuantity) {
+                throw new RuntimeException("재고가 부족합니다. 상품명: " + product.getName());
+            }
+
+            // 재고 깎기!
+            product.setStockQuantity(currentStock - orderQuantity);
+            productRepository.save(product);
+        }
+
+        // 4. 변경된 주문 상태 저장
+        orderRepository.save(order);
     }
 }

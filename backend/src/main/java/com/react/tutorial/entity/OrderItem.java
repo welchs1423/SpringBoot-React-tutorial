@@ -1,5 +1,6 @@
 package com.react.tutorial.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
@@ -10,8 +11,8 @@ import lombok.AllArgsConstructor; // ⭐️ 추가
 @Table(name = "order_item")
 @Getter
 @Setter
-@NoArgsConstructor // ⭐️ 추가
-@AllArgsConstructor // ⭐️ 추가
+@NoArgsConstructor
+@AllArgsConstructor
 public class OrderItem {
 
     @Id
@@ -19,7 +20,8 @@ public class OrderItem {
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "order_id", nullable = false)
+    @JoinColumn(name = "order_id")
+    @JsonIgnore
     private Order order;
 
     @ManyToOne(fetch = FetchType.LAZY)
