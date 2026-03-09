@@ -192,15 +192,13 @@ public class OrderService {
     }
 
     @Transactional
-    public void completePayment(Long orderId) {
-        // 1. 주문 가져오기
+    public void completePayment(Long orderId, String paymentKey) {
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new RuntimeException("주문을 찾을 수 없습니다. ID: " + orderId));
 
-        // 2. 주문 상태를 결제 완료로 변경 (OrderStatus Enum 사용!)
         order.setStatus(OrderStatus.PAID);
+        order.setPaymentKey(paymentKey);
 
-        // 3. 주문한 상품들의 재고 차감
         for (OrderItem item : order.getOrderItems()) {
             Product product = item.getProduct();
             int currentStock = product.getStockQuantity();
@@ -210,12 +208,10 @@ public class OrderService {
                 throw new RuntimeException("재고가 부족합니다. 상품명: " + product.getName());
             }
 
-            // 재고 깎기!
             product.setStockQuantity(currentStock - orderQuantity);
             productRepository.save(product);
         }
 
-        // 4. 변경된 주문 상태 저장
         orderRepository.save(order);
     }
 }

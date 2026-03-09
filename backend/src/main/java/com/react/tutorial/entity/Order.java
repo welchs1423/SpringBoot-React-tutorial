@@ -46,8 +46,14 @@ public class Order {
 
     private String memo;
 
-    @Column(nullable = false)
+    @Column(name = "payment_method")
     private String paymentMethod;
+
+    @Column(name = "payment_key")
+    private String paymentKey;
+
+    public String getPaymentKey() {return paymentKey;}
+    public void setPaymentKey(String paymentKey) {this.paymentKey = paymentKey;}
 
     @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<OrderItem> orderItems = new ArrayList<>();
