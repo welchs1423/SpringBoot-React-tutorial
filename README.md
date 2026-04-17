@@ -12,6 +12,16 @@ Spring Boot와 React를 이용한 풀스택 쇼핑몰 구축 및 실무 환경 �
 
 ## 업데이트 기록
 
+### [2026-04-17] [Completed] 재고 차감 동시성 제어 — 비관적 락(Pessimistic Lock) 적용
+
+**동시성 문제 해결 (`ProductRepository`, `OrderService`)**
+- 여러 사용자가 동시에 동일 상품을 결제할 때 재고가 음수가 되거나 정합성이 깨지는 Race Condition을 차단.
+- `ProductRepository`에 `@Lock(LockModeType.PESSIMISTIC_WRITE)` JPQL 메서드(`findByIdWithLock`)를 추가하여 DB 수준의 `SELECT ... FOR UPDATE`를 보장.
+- `OrderService.createOrder`: 재고 차감 직전 락이 걸린 메서드로 상품을 재조회하여 동시 요청 간 재고 수량 충돌을 원천 차단.
+- `OrderService.cancelOrder`: 환불·취소 시 재고 복구 구간에도 동일한 비관적 락을 적용하여 취소와 신규 주문이 동시에 들어오는 시나리오를 안전하게 처리.
+
+---
+
 ### [2026-04-17]
 
 #### 백엔드 — 코드 품질 개선 (경고 전면 해소)

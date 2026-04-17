@@ -9,6 +9,7 @@ import com.react.tutorial.exception.BusinessException;
 import com.react.tutorial.repository.CartItemRepository;
 import com.react.tutorial.repository.DeliveryAddressRepository;
 import com.react.tutorial.repository.OrderRepository;
+import com.react.tutorial.repository.ProductRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -25,6 +26,7 @@ public class OrderService {
     private final OrderRepository orderRepository;
     private final CartItemRepository cartItemRepository;
     private final DeliveryAddressRepository deliveryAddressRepository;
+    private final ProductRepository productRepository;
 
     @Transactional
     public Order createOrder(User user, OrderRequest request) {
@@ -39,11 +41,14 @@ public class OrderService {
 
         int totalAmount = 0;
         for (OrderItem item : orderItems) {
-            Product product = item.getProduct();
+            // 동시 결제 요청 시 재고 정합성 보장을 위해 비관적 락으로 상품을 재조회한다.
+            Product product = productRepository.findByIdWithLock(item.getProduct().getId())
+                    .orElseThrow(() -> new BusinessException("상품을 찾을 수 없습니다.", HttpStatus.NOT_FOUND));
             if (product.getStockQuantity() < item.getQuantity()) {
                 throw new BusinessException(product.getName() + " 상품의 재고가 부족합니다.", HttpStatus.CONFLICT);
             }
             product.setStockQuantity(product.getStockQuantity() - item.getQuantity());
+            item.setProduct(product);
             totalAmount += item.getOrderPrice() * item.getQuantity();
         }
 
@@ -98,7 +103,9 @@ public class OrderService {
         order.setCancelReason(reason);
 
         for (OrderItem item : order.getOrderItems()) {
-            Product product = item.getProduct();
+            // 취소·환불 시에도 동시 접근으로 인한 재고 오염을 막기 위해 비관적 락을 사용한다.
+            Product product = productRepository.findByIdWithLock(item.getProduct().getId())
+                    .orElseThrow(() -> new BusinessException("상품을 찾을 수 없습니다.", HttpStatus.NOT_FOUND));
             product.setStockQuantity(product.getStockQuantity() + item.getQuantity());
         }
     }
