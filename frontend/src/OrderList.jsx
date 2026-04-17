@@ -81,10 +81,9 @@ const OrderList = ({ token, updateFlag, currentUserName }) => {
         if (!window.confirm('정말로 이 주문을 취소하시겠습니까?')) return;
         try {
             await cancelOrder(targetCancelOrderId, cancelReason);
-            alert('주문이 취소되었습니다.');
             setCancelModalOpen(false);
             setCancelReason('');
-            setSelectedOrder(null);
+            setSelectedOrder(prev => prev ? { ...prev, status: 'CANCELED' } : null);
         } catch (err) {
             alert('취소 실패: ' + err.message);
         }
@@ -101,7 +100,9 @@ const OrderList = ({ token, updateFlag, currentUserName }) => {
                         <div key={`order-${order.id}`} onClick={() => handleOpenDetail(order.id)} style={cardStyle}>
                             <div style={cardHeaderStyle}>
                                 <strong>주문번호: {order.id}</strong>
-                                <span style={statusBadgeStyle(order.status)}>{order.status}</span>
+                                <span style={statusBadgeStyle(order.status)}>
+                                    {STATUS_LABEL[order.status] ?? order.status}
+                                </span>
                             </div>
                             <div style={cardBodyStyle}>결제금액: {order.totalPrice.toLocaleString()}원</div>
                         </div>
@@ -183,12 +184,12 @@ const OrderList = ({ token, updateFlag, currentUserName }) => {
                         <div style={modalFooterStyle}>
                             <strong>총 합계: {selectedOrder.totalPrice.toLocaleString()}원</strong>
                             <div style={{ display: 'flex', gap: '10px' }}>
-                                {selectedOrder.status !== 'CANCELED' && (
+                                {selectedOrder.status === 'PAID' && (
                                     <button
                                         onClick={() => { setTargetCancelOrderId(selectedOrder.id); setCancelModalOpen(true); }}
                                         style={{ ...closeBtnStyle, background: '#ff4d4f' }}
                                     >
-                                        주문 취소
+                                        결제 취소
                                     </button>
                                 )}
                                 <button onClick={() => { setSelectedOrder(null); setSelectedProductId(null); }} style={closeBtnStyle}>
@@ -222,12 +223,26 @@ const OrderList = ({ token, updateFlag, currentUserName }) => {
     );
 };
 
+const STATUS_LABEL = {
+    ORDERED:  '주문 완료',
+    PAID:     '결제 완료',
+    CANCELED: '결제 취소',
+};
+
 const containerStyle = { padding: '20px', maxWidth: '800px', margin: '0 auto' };
 const gridStyle = { display: 'grid', gap: '15px' };
 const cardStyle = { padding: '15px', border: '1px solid #eee', borderRadius: '12px', cursor: 'pointer', background: '#fff', boxShadow: '0 2px 5px rgba(0,0,0,0.05)' };
 const cardHeaderStyle = { display: 'flex', justifyContent: 'space-between', marginBottom: '10px' };
 const cardBodyStyle = { color: '#666', fontSize: '14px' };
-const statusBadgeStyle = (s) => ({ padding: '3px 8px', borderRadius: '20px', fontSize: '12px', background: s === 'ORDERED' ? '#e3f2fd' : '#f5f5f5', color: s === 'ORDERED' ? '#1976d2' : '#888' });
+const STATUS_BADGE_CONFIG = {
+    ORDERED:  { background: '#e3f2fd', color: '#1565c0' },
+    PAID:     { background: '#e8f5e9', color: '#2e7d32' },
+    CANCELED: { background: '#fce4ec', color: '#c62828' },
+};
+const statusBadgeStyle = (s) => ({
+    padding: '3px 8px', borderRadius: '20px', fontSize: '12px',
+    ...(STATUS_BADGE_CONFIG[s] ?? { background: '#f5f5f5', color: '#888' }),
+});
 const modalOverlayStyle = { position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.5)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000 };
 const modalContentStyle = { background: '#fff', padding: '25px', borderRadius: '20px', width: '90%', color: '#333', maxWidth: '400px' };
 const scrollAreaStyle = { maxHeight: '400px', overflowY: 'auto', marginBottom: '20px' };

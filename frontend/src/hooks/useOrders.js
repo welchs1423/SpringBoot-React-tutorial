@@ -27,9 +27,9 @@ export function useOrders(token, refreshFlag) {
     }, []);
 
     const cancelOrder = useCallback(async (orderId, reason) => {
-        await apiClient.patch(`/orders/${orderId}/cancel`, { reason });
-        await fetchOrders();
-    }, [fetchOrders]);
+        await apiClient.post(`/payment/cancel/${orderId}`, { cancelReason: reason });
+        setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: 'CANCELED' } : o));
+    }, []);
 
     const loadReviews = useCallback(async (productId) => {
         return apiClient.get(`/reviews/product/${productId}`);
