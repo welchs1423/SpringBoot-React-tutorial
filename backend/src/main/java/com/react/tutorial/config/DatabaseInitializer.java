@@ -15,6 +15,7 @@ public class DatabaseInitializer implements CommandLineRunner {
     private final PasswordEncoder passwordEncoder;
 
     @Override
+    @SuppressWarnings("null")
     public void run(String... args) throws Exception {
         // 관리자 계정 'admin'이 없을 경우 자동 생성
         if (userRepository.findByUsername("admin").isEmpty()) {

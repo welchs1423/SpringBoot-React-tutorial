@@ -36,6 +36,7 @@ public class CartService {
     }
 
     // 1. 장바구니 상품 추가
+    @SuppressWarnings("null")
     public void addItemToCart(String username, CartItemDTO cartItemDTO) {
         User user = findUserByUsername(username);
         Product product = productRepository.findById(cartItemDTO.getProductId())
@@ -73,6 +74,7 @@ public class CartService {
     }
 
     // 3. 장바구니 수량 변경
+    @SuppressWarnings("null")
     public void updateCartItemQuantity(String username, Long cartItemId, int newQuantity) {
         User user = findUserByUsername(username);
 
@@ -94,6 +96,7 @@ public class CartService {
     }
 
     // 4. 장바구니 상품 삭제
+    @SuppressWarnings("null")
     public void removeCartItem(String username, Long cartItemId) {
         User user = findUserByUsername(username);
 

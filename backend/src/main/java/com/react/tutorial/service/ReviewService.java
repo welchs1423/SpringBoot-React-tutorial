@@ -17,6 +17,7 @@ public class ReviewService {
     private final UserRepository userRepository;
 
     @Transactional
+    @SuppressWarnings("null")
     public void saveReview(String username, ReviewRequest request){
         User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new RuntimeException("사용자 없음"));
@@ -37,6 +38,7 @@ public class ReviewService {
     }
 
     @Transactional
+    @SuppressWarnings("null")
     public void deleteReview(Long reviewId, String username) {
         Review review = reviewRepository.findById(reviewId)
                 .orElseThrow(() -> new RuntimeException("리뷰가 존재하지 않습니다."));
@@ -49,6 +51,7 @@ public class ReviewService {
     }
 
     @Transactional
+    @SuppressWarnings("null")
     public void updateReview(Long reviewId, String username, String content, int rating){
         Review review = reviewRepository.findById(reviewId)
                 .orElseThrow(() -> new RuntimeException("리뷰가 존재하지 않습니다."));

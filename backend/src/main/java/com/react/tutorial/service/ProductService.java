@@ -62,6 +62,7 @@ public class ProductService {
     }
 
     // 3. 특정 상품 상세 조회
+    @SuppressWarnings("null")
     public ProductDTO findById(Long id) {
         Product product = productRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Invalid product ID: " + id));
@@ -70,6 +71,7 @@ public class ProductService {
 
     // 4. 상품 수정 (관리자 권한 필요)
     @Transactional
+    @SuppressWarnings("null")
     public ProductDTO update(Long id, ProductDTO dto) {
         Product product = productRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Invalid product ID: " + id));
@@ -94,6 +96,7 @@ public class ProductService {
 
     // 5. 상품 삭제 (관리자 권한 필요)
     @Transactional
+    @SuppressWarnings("null")
     public void delete(Long id) {
         Product product = productRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("상품 없음"));

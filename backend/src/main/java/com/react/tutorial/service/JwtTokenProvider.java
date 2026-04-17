@@ -45,8 +45,7 @@ public class JwtTokenProvider {
 
     public boolean validateToken(String token){
         try{
-            // 💡 key 객체를 사용하여 파싱
-            Jwts.parser().setSigningKey(key).parseClaimsJws(token);
+            Jwts.parserBuilder().setSigningKey(key).build().parseClaimsJws(token);
             return true;
         } catch(SignatureException ex){
             logger.error("잘못된 JWT 서명입니다: {}",ex.getMessage());
@@ -61,9 +60,9 @@ public class JwtTokenProvider {
     }
 
     public String getUsernameFromToken(String token){
-        // 💡 key 객체를 사용하여 파싱
-        Claims claims = Jwts.parser()
+        Claims claims = Jwts.parserBuilder()
                 .setSigningKey(key)
+                .build()
                 .parseClaimsJws(token)
                 .getBody();
 
@@ -92,8 +91,7 @@ public class JwtTokenProvider {
                 .claim("roles",authorities)  // 권한 정보 추가
                 .setIssuedAt(now)               // 발행시간
                 .setExpiration(validity)        // 만료 시간
-                // 💡 key 객체를 사용하여 서명
-                .signWith(SignatureAlgorithm.HS512, key)
+                .signWith(key)
                 .compact();
     }
 

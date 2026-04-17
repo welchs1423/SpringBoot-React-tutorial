@@ -10,14 +10,11 @@ import jakarta.transaction.Transactional;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
-
-import java.util.stream.Collectors;
 
 @Service
 public class AuthService {
@@ -64,6 +61,7 @@ public class AuthService {
     /**
      * 새로운 사용자 계정을 등록합니다.
      */
+    @SuppressWarnings("null")
     public void registerNewUser(RegisterRequest registerRequest){
         
         if (userRepository.findByUsername(registerRequest.getUsername()).isPresent()) {

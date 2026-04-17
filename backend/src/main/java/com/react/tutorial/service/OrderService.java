@@ -9,7 +9,6 @@ import com.react.tutorial.exception.BusinessException;
 import com.react.tutorial.repository.CartItemRepository;
 import com.react.tutorial.repository.DeliveryAddressRepository;
 import com.react.tutorial.repository.OrderRepository;
-import com.react.tutorial.repository.ProductRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -25,7 +24,6 @@ public class OrderService {
 
     private final OrderRepository orderRepository;
     private final CartItemRepository cartItemRepository;
-    private final ProductRepository productRepository;
     private final DeliveryAddressRepository deliveryAddressRepository;
 
     @Transactional
@@ -110,6 +108,7 @@ public class OrderService {
      * 재고는 createOrder에서 이미 차감되었으므로 여기서는 차감하지 않는다.
      */
     @Transactional
+    @SuppressWarnings("null")
     public void completePayment(Long orderId, String paymentKey) {
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new BusinessException("주문을 찾을 수 없습니다. ID: " + orderId, HttpStatus.NOT_FOUND));
@@ -131,6 +130,7 @@ public class OrderService {
                 .collect(Collectors.toList());
     }
 
+    @SuppressWarnings("null")
     private DeliveryAddress resolveDeliveryAddress(User user, OrderRequest request) {
         if (request.getDeliveryAddressSeq() != null) {
             return deliveryAddressRepository.findById(request.getDeliveryAddressSeq())

@@ -1,16 +1,15 @@
 package com.react.tutorial.filter;
 
 import com.react.tutorial.service.JwtTokenProvider;
-import com.react.tutorial.service.CustomUserDetailsService;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.lang.NonNull;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.util.StringUtils;
 import org.springframework.web.filter.OncePerRequestFilter;
@@ -29,7 +28,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     }
 
     @Override
-    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
+    protected void doFilterInternal(@NonNull HttpServletRequest request, @NonNull HttpServletResponse response, @NonNull FilterChain filterChain)
             throws ServletException, IOException {
 
         System.out.println("[JWT_FILTER_ENTRY] Filter Chain 진입: " + request.getRequestURI());
@@ -80,7 +79,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     //필터 실행 여부를 결정하는 핵심 메서드 오버라이드
     @Override
-    protected boolean shouldNotFilter(HttpServletRequest request) throws ServletException{
+    protected boolean shouldNotFilter(@NonNull HttpServletRequest request) throws ServletException{
         String path = request.getRequestURI();
         // 허용된 경로 목록 중 현재 요청 URI로 시작하는 경로가 있는지 확인
         return permittedUrls.stream().anyMatch(path::startsWith);

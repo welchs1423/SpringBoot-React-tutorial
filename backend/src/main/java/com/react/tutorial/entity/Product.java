@@ -38,11 +38,14 @@ public class Product extends BaseEntity{
     @Column(length = 500)
     private String imageUrl;
 
+    @Builder.Default
     @OneToMany(mappedBy = "product", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Review> reviews = new ArrayList<>();
 
+    @Builder.Default
     @OneToMany(mappedBy = "product", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<CartItem> cartItems = new ArrayList<>();
 
+    @Builder.Default
     private boolean isDeleted = false;
 }

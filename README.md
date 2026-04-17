@@ -12,26 +12,40 @@ Spring Boot와 React를 이용한 풀스택 쇼핑몰 구축 및 실무 환경 �
 
 ## 업데이트 기록
 
-### [2026-04-17] 프론트엔드 결제 취소 UI 연동 (환불 API 연동)
+### [2026-04-17]
 
-#### 프론트엔드
+#### 백엔드 — 코드 품질 개선 (경고 전면 해소)
 
-**상태별 배지(Badge) UI 추가**
-- 주문 목록 카드에 `ORDERED`(파랑), `PAID`(초록), `CANCELED`(빨강) 상태를 시각적으로 구분하는 컬러 배지를 표시.
+**JJWT Deprecated API 현대화 (`JwtTokenProvider`)**
+- `Jwts.parser()` → `Jwts.parserBuilder()` 체인으로 교체 (JJWT 0.11.5 권장 방식).
+- `signWith(SignatureAlgorithm.HS512, key)` → `signWith(key)` 로 변경 (`SecretKey` 에서 알고리즘 자동 추론).
 
-**결제 취소 버튼 및 모달**
-- 상태가 `PAID`인 주문에만 '결제 취소' 버튼을 노출.
-- 버튼 클릭 시 취소 사유 입력 모달이 열리며, 사유 입력 후 백엔드 `/api/payment/cancel/{orderId}`로 POST 요청.
+**`NullSecurityContextRepository` Spring Security 6 대응**
+- 폐기(Deprecated)된 `loadContext(HttpRequestResponseHolder)` 유지 + 신규 `loadDeferredContext(HttpServletRequest)` 오버라이드 추가.
+- `@SuppressWarnings("deprecation")` 로 불가피한 인터페이스 구현 경고 억제.
 
-**즉시 상태 동기화**
-- 취소 API 성공 시 추가 네트워크 요청 없이 `orders` 목록 상태와 상세 모달의 `selectedOrder`를 모두 즉시 `CANCELED`로 갱신.
-- 취소 완료 후 상세 모달이 열린 채 CANCELED 배지로 전환되어 사용자에게 즉각적인 피드백 제공.
+**`Product` 엔티티 `@Builder.Default` 적용**
+- `reviews`, `cartItems`, `isDeleted` 필드에 `@Builder.Default` 를 추가해 빌더 사용 시 기본값이 무시되던 문제 해소.
 
----
+**`UploadController` 잠재적 NPE 수정**
+- `getOriginalFilename()` 결과가 null이거나 확장자가 없는 경우를 사전 검증, 400 Bad Request로 명시적 응답.
 
-### [2026-04-17] 전면 리팩토링 — 관심사 분리 및 아키텍처 개선
+**미사용 코드 제거**
+- `CustomUserDetailsService.passwordEncoder` 필드 및 생성자 파라미터 제거.
+- `OrderService.productRepository` 필드 및 임포트 제거.
+- `SecurityConfig` 의 미사용 `CorsConfigurer` 임포트 제거.
+- `AuthService` 의 미사용 `AuthenticationManagerBuilder`, `Collectors` 임포트 제거.
+- `JwtAuthenticationFilter` 의 미사용 `CustomUserDetailsService`, `UserDetails` 임포트 제거.
 
-#### 백엔드
+**`@NonNull` 계약 명시 (`JwtAuthenticationFilter`)**
+- `doFilterInternal`, `shouldNotFilter` 파라미터에 `@NonNull` 어노테이션 추가 — 상위 `OncePerRequestFilter` 계약 충족.
+
+**정적 분석 `@NonNull` 오탐 억제**
+- Lombok 빌더 반환값 및 컨트롤러 경유 `Long` 파라미터를 `findById()` 에 전달할 때 JDT 가 잘못 경고하는 케이스에 `@SuppressWarnings("null")` 적용 (CartService, ProductService, ReviewService, OrderService, AuthService, DatabaseInitializer).
+
+#### 백엔드/프론트엔드 — 전면 리팩토링 (관심사 분리 및 아키텍처 개선)
+
+**백엔드**
 
 **GlobalExceptionHandler 도입 (예외 처리 일원화)**
 - `exception/GlobalExceptionHandler.java` 신규 생성으로 모든 컨트롤러의 try-catch 중복 코드 제거.
@@ -56,7 +70,7 @@ Spring Boot와 React를 이용한 풀스택 쇼핑몰 구축 및 실무 환경 �
 - `AuthController` 생성자 주입 방식 `@RequiredArgsConstructor`로 통일.
 - `AuthService`의 중복 username 예외를 `BusinessException(409 CONFLICT)`으로 교체.
 
-#### 프론트엔드
+**프론트엔드**
 
 **공통 API 클라이언트 (`src/api/apiClient.js`)**
 - 모든 컴포넌트에 흩어져 있던 `API_BASE_URL` 상수 및 `fetch` 호출을 단일 모듈로 통합.
@@ -74,6 +88,19 @@ Spring Boot와 React를 이용한 풀스택 쇼핑몰 구축 및 실무 환경 �
 - `App.jsx`: `useAuth` / `useProducts` 훅 적용, `useMemo`로 상품 검색 필터링 최적화, `useCallback`으로 핸들러 메모이제이션.
 - `AuthManager.jsx`: `useAuth` 훅 위임, 상태 변수 명 충돌(`username` 필드명) 해소.
 - `CartList.jsx` / `OrderList.jsx` / `ProductManager.jsx`: 각각 전용 훅(`useCart`, `useOrders`, `useProducts`)으로 API 로직 분리.
+
+#### 프론트엔드 — 결제 취소 UI 연동
+
+**상태별 배지(Badge) UI 추가**
+- 주문 목록 카드에 `ORDERED`(파랑), `PAID`(초록), `CANCELED`(빨강) 상태를 시각적으로 구분하는 컬러 배지를 표시.
+
+**결제 취소 버튼 및 모달**
+- 상태가 `PAID`인 주문에만 '결제 취소' 버튼을 노출.
+- 버튼 클릭 시 취소 사유 입력 모달이 열리며, 사유 입력 후 백엔드 `/api/payment/cancel/{orderId}`로 POST 요청.
+
+**즉시 상태 동기화**
+- 취소 API 성공 시 추가 네트워크 요청 없이 `orders` 목록 상태와 상세 모달의 `selectedOrder`를 모두 즉시 `CANCELED`로 갱신.
+- 취소 완료 후 상세 모달이 열린 채 CANCELED 배지로 전환되어 사용자에게 즉각적인 피드백 제공.
 
 ---
 

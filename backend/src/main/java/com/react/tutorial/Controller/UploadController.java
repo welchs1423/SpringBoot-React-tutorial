@@ -32,6 +32,9 @@ public class UploadController {
             }
 
             String originalFilename = file.getOriginalFilename();
+            if (originalFilename == null || !originalFilename.contains(".")) {
+                return ResponseEntity.badRequest().body("유효하지 않은 파일명입니다.");
+            }
             String extension = originalFilename.substring(originalFilename.lastIndexOf('.'));
             String savedFilename = UUID.randomUUID() + extension;
 
