@@ -79,4 +79,14 @@ public class User implements UserDetails {
     }
 
     private String email;
+
+    private int points;
+
+    public void addPoints(int amount) {
+        this.points += amount;
+    }
+
+    public void deductPoints(int amount) {
+        this.points -= amount;
+    }
 }

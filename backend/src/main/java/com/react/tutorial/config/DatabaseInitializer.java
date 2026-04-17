@@ -1,11 +1,16 @@
 package com.react.tutorial.config;
 
+import com.react.tutorial.dto.CouponType;
+import com.react.tutorial.entity.Coupon;
 import com.react.tutorial.entity.User;
+import com.react.tutorial.repository.CouponRepository;
 import com.react.tutorial.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
+
+import java.time.LocalDate;
 
 @Component
 @RequiredArgsConstructor

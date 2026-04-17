@@ -37,7 +37,8 @@ public class PaymentService {
         Order order = orderRepository.findById(Objects.requireNonNull(dbOrderId))
                 .orElseThrow(() -> new BusinessException("주문을 찾을 수 없습니다.", HttpStatus.NOT_FOUND));
 
-        if (order.getTotalAmount() != request.getAmount()) {
+        long expectedAmount = order.getFinalAmount() > 0 ? order.getFinalAmount() : order.getTotalAmount();
+        if (expectedAmount != request.getAmount()) {
             throw new BusinessException("결제 금액이 일치하지 않습니다. 위변조가 의심됩니다.", HttpStatus.BAD_REQUEST);
         }
 

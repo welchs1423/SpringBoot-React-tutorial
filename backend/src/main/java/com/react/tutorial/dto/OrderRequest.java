@@ -18,4 +18,8 @@ public class OrderRequest {
     private String memo;
 
     private String paymentMethod;
+
+    private Long couponId;
+
+    private int pointsToUse;
 }

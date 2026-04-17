@@ -55,4 +55,12 @@ public class Order {
     private List<OrderItem> orderItems = new ArrayList<>();
 
     private String cancelReason;
+
+    private int couponDiscount;
+
+    private int pointDiscount;
+
+    private int finalAmount;
+
+    private Long userCouponId;
 }

@@ -22,4 +22,7 @@ public class OrderResponseDTO {
     private String status;
     private List<OrderItemDTO> orderItems;
     private String cancelReason;
+    private int couponDiscount;
+    private int pointDiscount;
+    private int finalAmount;
 }

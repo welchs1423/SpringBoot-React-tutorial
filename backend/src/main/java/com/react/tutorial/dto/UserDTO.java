@@ -12,9 +12,12 @@ public class UserDTO {
     private String role;
 
     // 엔티티를 받아 DTO로 변환하는 생성자는 그대로 유지합니다.
+    private int points;
+
     public UserDTO(User user) {
         this.id = user.getId();
         this.username = user.getUsername();
         this.role = user.getRole();
+        this.points = user.getPoints();
     }
 }

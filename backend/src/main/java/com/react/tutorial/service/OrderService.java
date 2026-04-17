@@ -1,20 +1,15 @@
 package com.react.tutorial.service;
 
-import com.react.tutorial.dto.OrderItemDTO;
-import com.react.tutorial.dto.OrderRequest;
-import com.react.tutorial.dto.OrderResponseDTO;
-import com.react.tutorial.dto.OrderStatus;
+import com.react.tutorial.dto.*;
 import com.react.tutorial.entity.*;
 import com.react.tutorial.exception.BusinessException;
-import com.react.tutorial.repository.CartItemRepository;
-import com.react.tutorial.repository.DeliveryAddressRepository;
-import com.react.tutorial.repository.OrderRepository;
-import com.react.tutorial.repository.ProductRepository;
+import com.react.tutorial.repository.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -27,11 +22,16 @@ public class OrderService {
     private final CartItemRepository cartItemRepository;
     private final DeliveryAddressRepository deliveryAddressRepository;
     private final ProductRepository productRepository;
+    private final UserRepository userRepository;
+    private final UserCouponRepository userCouponRepository;
 
     @Transactional
     public Order createOrder(User user, OrderRequest request) {
-        DeliveryAddress address = resolveDeliveryAddress(user, request);
-        List<CartItem> cartItems = cartItemRepository.findAllByUser(user);
+        User freshUser = userRepository.findById(user.getId())
+                .orElseThrow(() -> new BusinessException("사용자를 찾을 수 없습니다.", HttpStatus.NOT_FOUND));
+
+        DeliveryAddress address = resolveDeliveryAddress(freshUser, request);
+        List<CartItem> cartItems = cartItemRepository.findAllByUser(freshUser);
 
         if (cartItems.isEmpty()) {
             throw new BusinessException("장바구니가 비어 있어 주문을 생성할 수 없습니다.", HttpStatus.BAD_REQUEST);
@@ -41,7 +41,6 @@ public class OrderService {
 
         int totalAmount = 0;
         for (OrderItem item : orderItems) {
-            // 동시 결제 요청 시 재고 정합성 보장을 위해 비관적 락으로 상품을 재조회한다.
             Product product = productRepository.findByIdWithLock(item.getProduct().getId())
                     .orElseThrow(() -> new BusinessException("상품을 찾을 수 없습니다.", HttpStatus.NOT_FOUND));
             if (product.getStockQuantity() < item.getQuantity()) {
@@ -52,11 +51,57 @@ public class OrderService {
             totalAmount += item.getOrderPrice() * item.getQuantity();
         }
 
+        int couponDiscount = 0;
+        Long userCouponId = null;
+        if (request.getCouponId() != null) {
+            UserCoupon userCoupon = userCouponRepository.findById(request.getCouponId())
+                    .filter(uc -> !uc.isUsed() && uc.getCoupon().isActive()
+                            && uc.getUser().getId().equals(freshUser.getId()))
+                    .orElseThrow(() -> new BusinessException("유효하지 않은 쿠폰입니다.", HttpStatus.BAD_REQUEST));
+
+            Coupon coupon = userCoupon.getCoupon();
+            if (coupon.getExpiryDate() != null && coupon.getExpiryDate().isBefore(LocalDate.now())) {
+                throw new BusinessException("만료된 쿠폰입니다.", HttpStatus.BAD_REQUEST);
+            }
+            if (totalAmount < coupon.getMinOrderAmount()) {
+                throw new BusinessException(
+                        "최소 주문 금액(" + coupon.getMinOrderAmount() + "원)을 충족하지 않습니다.", HttpStatus.BAD_REQUEST);
+            }
+
+            couponDiscount = coupon.getType() == CouponType.FIXED
+                    ? coupon.getDiscountValue()
+                    : totalAmount * coupon.getDiscountValue() / 100;
+            couponDiscount = Math.min(couponDiscount, totalAmount);
+
+            userCoupon.setUsed(true);
+            userCoupon.setUsedAt(LocalDateTime.now());
+            userCouponId = userCoupon.getId();
+        }
+
+        int pointsToUse = Math.max(0, request.getPointsToUse());
+        if (pointsToUse > 0) {
+            if (pointsToUse > freshUser.getPoints()) {
+                throw new BusinessException(
+                        "보유 포인트(" + freshUser.getPoints() + "P)를 초과하여 사용할 수 없습니다.", HttpStatus.BAD_REQUEST);
+            }
+            int usable = totalAmount - couponDiscount;
+            if (pointsToUse > usable) {
+                throw new BusinessException("결제 금액을 초과하여 포인트를 사용할 수 없습니다.", HttpStatus.BAD_REQUEST);
+            }
+            freshUser.deductPoints(pointsToUse);
+        }
+
+        int finalAmount = Math.max(0, totalAmount - couponDiscount - pointsToUse);
+
         Order order = new Order();
-        order.setUser(user);
+        order.setUser(freshUser);
         order.setStatus(OrderStatus.ORDERED);
         order.setOrderDate(LocalDateTime.now());
         order.setTotalAmount(totalAmount);
+        order.setCouponDiscount(couponDiscount);
+        order.setPointDiscount(pointsToUse);
+        order.setFinalAmount(finalAmount);
+        order.setUserCouponId(userCouponId);
         order.setPaymentMethod(request.getPaymentMethod());
         order.setReceiverName(address.getReceiverName());
         order.setAddress(address.getAddress());
@@ -102,18 +147,26 @@ public class OrderService {
         order.setStatus(OrderStatus.CANCELED);
         order.setCancelReason(reason);
 
+        if (order.getPointDiscount() > 0) {
+            User orderUser = userRepository.findById(order.getUser().getId())
+                    .orElseThrow(() -> new BusinessException("사용자를 찾을 수 없습니다.", HttpStatus.NOT_FOUND));
+            orderUser.addPoints(order.getPointDiscount());
+        }
+
+        if (order.getUserCouponId() != null) {
+            userCouponRepository.findById(order.getUserCouponId()).ifPresent(uc -> {
+                uc.setUsed(false);
+                uc.setUsedAt(null);
+            });
+        }
+
         for (OrderItem item : order.getOrderItems()) {
-            // 취소·환불 시에도 동시 접근으로 인한 재고 오염을 막기 위해 비관적 락을 사용한다.
             Product product = productRepository.findByIdWithLock(item.getProduct().getId())
                     .orElseThrow(() -> new BusinessException("상품을 찾을 수 없습니다.", HttpStatus.NOT_FOUND));
             product.setStockQuantity(product.getStockQuantity() + item.getQuantity());
         }
     }
 
-    /**
-     * 토스페이먼츠 결제 승인 후 주문 상태를 PAID로 변경한다.
-     * 재고는 createOrder에서 이미 차감되었으므로 여기서는 차감하지 않는다.
-     */
     @Transactional
     @SuppressWarnings("null")
     public void completePayment(Long orderId, String paymentKey) {
@@ -122,6 +175,13 @@ public class OrderService {
 
         order.setStatus(OrderStatus.PAID);
         order.setPaymentKey(paymentKey);
+
+        int earnedPoints = order.getFinalAmount() / 100;
+        if (earnedPoints > 0) {
+            User orderUser = userRepository.findById(order.getUser().getId())
+                    .orElseThrow(() -> new BusinessException("사용자를 찾을 수 없습니다.", HttpStatus.NOT_FOUND));
+            orderUser.addPoints(earnedPoints);
+        }
     }
 
     private List<OrderItem> buildOrderItems(List<CartItem> cartItems) {
@@ -184,6 +244,9 @@ public class OrderService {
                 .phoneNumber(order.getPhoneNumber())
                 .paymentMethod(order.getPaymentMethod())
                 .totalPrice(order.getTotalAmount())
+                .couponDiscount(order.getCouponDiscount())
+                .pointDiscount(order.getPointDiscount())
+                .finalAmount(order.getFinalAmount() > 0 ? order.getFinalAmount() : order.getTotalAmount())
                 .status(order.getStatus().toString())
                 .cancelReason(order.getCancelReason())
                 .orderItems(order.getOrderItems().stream()
