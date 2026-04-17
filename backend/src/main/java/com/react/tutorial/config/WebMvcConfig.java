@@ -1,16 +1,22 @@
 package com.react.tutorial.config;
 
+import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.lang.NonNull;
+import org.springframework.web.client.RestTemplate;
 import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 @Configuration
 public class WebMvcConfig implements WebMvcConfigurer {
 
+    @Bean
+    public RestTemplate restTemplate() {
+        return new RestTemplate();
+    }
+
     @Override
-    public void addResourceHandlers(ResourceHandlerRegistry registry) {
-        // 프론트엔드에서 "/uploads/파일명" 으로 요청하면
-        // 실제 백엔드 프로젝트 루트에 있는 "uploads/" 폴더에서 파일을 찾도록 매핑합니다.
+    public void addResourceHandlers(@NonNull ResourceHandlerRegistry registry) {
         registry.addResourceHandler("/uploads/**")
                 .addResourceLocations("file:uploads/");
     }

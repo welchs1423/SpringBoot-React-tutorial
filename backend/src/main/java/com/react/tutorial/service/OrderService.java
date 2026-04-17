@@ -5,14 +5,15 @@ import com.react.tutorial.dto.OrderRequest;
 import com.react.tutorial.dto.OrderResponseDTO;
 import com.react.tutorial.dto.OrderStatus;
 import com.react.tutorial.entity.*;
+import com.react.tutorial.exception.BusinessException;
 import com.react.tutorial.repository.CartItemRepository;
 import com.react.tutorial.repository.DeliveryAddressRepository;
 import com.react.tutorial.repository.OrderRepository;
 import com.react.tutorial.repository.ProductRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import com.react.tutorial.dto.OrderStatus;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -28,131 +29,129 @@ public class OrderService {
     private final DeliveryAddressRepository deliveryAddressRepository;
 
     @Transactional
-    public Order createOrder(User user, OrderRequest request){
-        DeliveryAddress finalAddress = resolveDeliveryAddress(user, request);
-
+    public Order createOrder(User user, OrderRequest request) {
+        DeliveryAddress address = resolveDeliveryAddress(user, request);
         List<CartItem> cartItems = cartItemRepository.findAllByUser(user);
 
-        if(cartItems.isEmpty()){
-            throw new IllegalArgumentException("장바구니가 비어 있어 주문을 생성할 수 없습니다.");
+        if (cartItems.isEmpty()) {
+            throw new BusinessException("장바구니가 비어 있어 주문을 생성할 수 없습니다.", HttpStatus.BAD_REQUEST);
         }
+
+        List<OrderItem> orderItems = buildOrderItems(cartItems);
 
         int totalAmount = 0;
-        List<OrderItem> orderItems = createOrderItems(cartItems);
-
-        for(OrderItem orderItem : orderItems){
-            Product product = orderItem.getProduct();
-            int orderQuantity = orderItem.getQuantity();
-
-            // 재고 확인
-            if(product.getStockQuantity() < orderQuantity){
-                throw new IllegalStateException((product.getName() + " 상품의 재고가 부족합니다."));
+        for (OrderItem item : orderItems) {
+            Product product = item.getProduct();
+            if (product.getStockQuantity() < item.getQuantity()) {
+                throw new BusinessException(product.getName() + " 상품의 재고가 부족합니다.", HttpStatus.CONFLICT);
             }
-
-            // 재고 차감
-            product.setStockQuantity(product.getStockQuantity() - orderQuantity);
-
-            // 총 금액 계산
-            totalAmount += orderItem.getOrderPrice() * orderQuantity;
+            product.setStockQuantity(product.getStockQuantity() - item.getQuantity());
+            totalAmount += item.getOrderPrice() * item.getQuantity();
         }
 
-        // 주문 엔티티 생성, 저장
         Order order = new Order();
         order.setUser(user);
-        order.setStatus(OrderStatus.ORDERED);   // 초기 상태: 주문 완료
+        order.setStatus(OrderStatus.ORDERED);
         order.setOrderDate(LocalDateTime.now());
         order.setTotalAmount(totalAmount);
         order.setPaymentMethod(request.getPaymentMethod());
-
-        // 배송 정보 스냅샷 저장
-        order.setReceiverName(finalAddress.getReceiverName());
-        order.setAddress(finalAddress.getAddress());
-        order.setPhoneNumber(finalAddress.getPhoneNumber());
+        order.setReceiverName(address.getReceiverName());
+        order.setAddress(address.getAddress());
+        order.setPhoneNumber(address.getPhoneNumber());
         order.setMemo(request.getMemo());
 
-        for(OrderItem orderItem : orderItems){
-            order.getOrderItems().add(orderItem);
-            orderItem.setOrder(order);
+        for (OrderItem item : orderItems) {
+            order.getOrderItems().add(item);
+            item.setOrder(order);
         }
 
-        Order saveOrder = orderRepository.save(order);
-
+        Order saved = orderRepository.save(order);
         cartItemRepository.deleteAll(cartItems);
-
-        return saveOrder;
+        return saved;
     }
 
-    private List<OrderItem> createOrderItems(List<CartItem> cartItems){
+    public List<OrderResponseDTO> getUserOrders(User user) {
+        return orderRepository.findByUserWithItems(user).stream()
+                .map(this::toDTO)
+                .collect(Collectors.toList());
+    }
+
+    public OrderResponseDTO getOrderDetail(Long orderId, User user) {
+        Order order = orderRepository.findByIdWithItems(orderId)
+                .orElseThrow(() -> new BusinessException("해당 주문을 찾을 수 없습니다.", HttpStatus.NOT_FOUND));
+
+        if (!order.getUser().getId().equals(user.getId())) {
+            throw new BusinessException("해당 주문에 대한 조회 권한이 없습니다.", HttpStatus.FORBIDDEN);
+        }
+
+        return toDTO(order);
+    }
+
+    @Transactional
+    public void cancelOrder(Long orderId, String reason, User user) {
+        Order order = orderRepository.findByIdWithItems(orderId)
+                .orElseThrow(() -> new BusinessException("주문을 찾을 수 없습니다.", HttpStatus.NOT_FOUND));
+
+        if (!order.getUser().getId().equals(user.getId())) {
+            throw new BusinessException("주문 취소 권한이 없습니다.", HttpStatus.FORBIDDEN);
+        }
+
+        order.setStatus(OrderStatus.CANCELED);
+        order.setCancelReason(reason);
+
+        for (OrderItem item : order.getOrderItems()) {
+            Product product = item.getProduct();
+            product.setStockQuantity(product.getStockQuantity() + item.getQuantity());
+        }
+    }
+
+    /**
+     * 토스페이먼츠 결제 승인 후 주문 상태를 PAID로 변경한다.
+     * 재고는 createOrder에서 이미 차감되었으므로 여기서는 차감하지 않는다.
+     */
+    @Transactional
+    public void completePayment(Long orderId, String paymentKey) {
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new BusinessException("주문을 찾을 수 없습니다. ID: " + orderId, HttpStatus.NOT_FOUND));
+
+        order.setStatus(OrderStatus.PAID);
+        order.setPaymentKey(paymentKey);
+    }
+
+    private List<OrderItem> buildOrderItems(List<CartItem> cartItems) {
         return cartItems.stream()
                 .map(cartItem -> {
                     Product product = cartItem.getProduct();
-
-                    OrderItem orderItem = new OrderItem();
-                    orderItem.setProduct(product);
-                    orderItem.setQuantity(cartItem.getQuantity());
-                    orderItem.setOrderPrice(product.getPrice());
-
-                    return orderItem;
+                    OrderItem item = new OrderItem();
+                    item.setProduct(product);
+                    item.setQuantity(cartItem.getQuantity());
+                    item.setOrderPrice(product.getPrice());
+                    return item;
                 })
                 .collect(Collectors.toList());
     }
 
-    private DeliveryAddress resolveDeliveryAddress(User user, OrderRequest request){
-        if(request.getDeliveryAddressSeq() != null){
+    private DeliveryAddress resolveDeliveryAddress(User user, OrderRequest request) {
+        if (request.getDeliveryAddressSeq() != null) {
             return deliveryAddressRepository.findById(request.getDeliveryAddressSeq())
                     .filter(addr -> addr.getUser().getId().equals(user.getId()))
-                    .orElseThrow(() -> new IllegalArgumentException("유효하지 않은 배송지 SEQ이거나 사용자의 주소가 아닙니다."));
-        } else {
-            if(request.getReceiverName() == null || request.getAddress() == null || request.getPhoneNumber() == null) {
-                throw new IllegalArgumentException("배송지 정보가 불완전합니다. (SEQ 또는 신규 주소 필수");
-            }
-
-            DeliveryAddress newAddress = new DeliveryAddress();
-            newAddress.setUser(user);
-            newAddress.setReceiverName(request.getReceiverName());
-            newAddress.setAddress(request.getAddress());
-            newAddress.setPhoneNumber(request.getPhoneNumber());
-            return newAddress;
-        }
-    }
-
-    public List<OrderResponseDTO> getUserOrders(User user){
-        // 1. 유저의 모든 주문을 최신순으로 조회 (주문 엔티티 리스트)
-        List<Order> orders = orderRepository.findByUserOrderByOrderDateDesc(user);
-        
-        // 2. Order 엔티티를 OrderResponseDTO로 변환
-        return orders.stream().map(order -> OrderResponseDTO.builder()
-                .id(order.getId())
-                .orderDate(order.getOrderDate())
-                .receiverName(order.getReceiverName())
-                .address(order.getAddress())
-                .phoneNumber(order.getPhoneNumber())
-                .paymentMethod(order.getPaymentMethod())
-                .totalPrice(order.getTotalAmount())
-                .status(order.getStatus().toString())
-                .orderItems(order.getOrderItems().stream().map(item ->
-                        new OrderItemDTO(
-                                item.getProduct().getId(),
-                                item.getProduct().getName(),
-                            item.getOrderPrice(),
-                            item.getQuantity()
-                        )).collect(Collectors.toList()))
-                .cancelReason(order.getCancelReason())
-                .build()
-        ).collect(Collectors.toList());
-    }
-
-    public OrderResponseDTO getOrderDetail(Long orderId, User user) {
-        // 1. 주문 아이디로 주문을 찾되, 없으면 에러 발생
-        Order order = orderRepository.findById(orderId)
-                .orElseThrow(() -> new IllegalArgumentException("해당 주문을 찾을 수 없습니다."));
-
-        // 2. 보안 체크: 주문한 사람이 현재 로그인한 유저인지 확인
-        if (!order.getUser().getId().equals(user.getId())) {
-            throw new IllegalStateException("해당 주문에 대한 조회 권한이 없습니다.");
+                    .orElseThrow(() -> new BusinessException(
+                            "유효하지 않은 배송지 SEQ이거나 사용자의 주소가 아닙니다.", HttpStatus.BAD_REQUEST));
         }
 
-        // 3. 엔티티를 DTO로 변환 (기존 getUserOrders의 변환 로직과 동일)
+        if (request.getReceiverName() == null || request.getAddress() == null || request.getPhoneNumber() == null) {
+            throw new BusinessException("배송지 정보가 불완전합니다. (SEQ 또는 신규 주소 필수)", HttpStatus.BAD_REQUEST);
+        }
+
+        DeliveryAddress newAddress = new DeliveryAddress();
+        newAddress.setUser(user);
+        newAddress.setReceiverName(request.getReceiverName());
+        newAddress.setAddress(request.getAddress());
+        newAddress.setPhoneNumber(request.getPhoneNumber());
+        return newAddress;
+    }
+
+    private OrderResponseDTO toDTO(Order order) {
         return OrderResponseDTO.builder()
                 .id(order.getId())
                 .orderDate(order.getOrderDate())
@@ -162,56 +161,14 @@ public class OrderService {
                 .paymentMethod(order.getPaymentMethod())
                 .totalPrice(order.getTotalAmount())
                 .status(order.getStatus().toString())
-                .orderItems(order.getOrderItems().stream().map(item ->
-                        new OrderItemDTO(
+                .cancelReason(order.getCancelReason())
+                .orderItems(order.getOrderItems().stream()
+                        .map(item -> new OrderItemDTO(
                                 item.getProduct().getId(),
                                 item.getProduct().getName(),
                                 item.getOrderPrice(),
-                                item.getQuantity()
-                        )).collect(Collectors.toList()))
+                                item.getQuantity()))
+                        .collect(Collectors.toList()))
                 .build();
-    }
-
-    @Transactional
-    public void cancelOrder(Long orderId, String reason, User user){
-        Order order = orderRepository.findById(orderId)
-                .orElseThrow(() -> new IllegalArgumentException("주문을 찾을 수 없습니다."));
-
-        if (!order.getUser().getId().equals(user.getId())) {
-            throw new IllegalStateException("권한이 없습니다.");
-        }
-
-        order.setStatus(OrderStatus.CANCELED);  // 상태 변경
-        order.setCancelReason(reason);          // 사유 저장
-
-        // 상품 재고 복구 로직 (옵션: 취소 시 재고를 다시 늘려줍니다)
-        for(OrderItem item : order.getOrderItems()){
-            Product product = item.getProduct();
-            product.setStockQuantity(product.getStockQuantity() + item.getQuantity());
-        }
-    }
-
-    @Transactional
-    public void completePayment(Long orderId, String paymentKey) {
-        Order order = orderRepository.findById(orderId)
-                .orElseThrow(() -> new RuntimeException("주문을 찾을 수 없습니다. ID: " + orderId));
-
-        order.setStatus(OrderStatus.PAID);
-        order.setPaymentKey(paymentKey);
-
-        for (OrderItem item : order.getOrderItems()) {
-            Product product = item.getProduct();
-            int currentStock = product.getStockQuantity();
-            int orderQuantity = item.getQuantity();
-
-            if (currentStock < orderQuantity) {
-                throw new RuntimeException("재고가 부족합니다. 상품명: " + product.getName());
-            }
-
-            product.setStockQuantity(currentStock - orderQuantity);
-            productRepository.save(product);
-        }
-
-        orderRepository.save(order);
     }
 }

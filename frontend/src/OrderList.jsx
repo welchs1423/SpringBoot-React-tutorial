@@ -1,169 +1,104 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import StarRating from './StarRating';
+import { useOrders } from './hooks/useOrders';
 
-const API_BASE_URL = 'http://localhost:8080';
+const OrderList = ({ token, updateFlag, currentUserName }) => {
+    const {
+        orders,
+        loading,
+        fetchOrderDetail,
+        cancelOrder,
+        loadReviews,
+        submitReview,
+        updateReview,
+        deleteReview,
+    } = useOrders(token, updateFlag);
 
-const OrderList = ({ userToken, updateFlag, currentUserName }) => {
-    const [orders, setOrders] = useState([]);
     const [selectedOrder, setSelectedOrder] = useState(null);
-    const [loading, setLoading] = useState(true);
-    const [reviewText, setReviewText] = useState("");
     const [selectedProductId, setSelectedProductId] = useState(null);
     const [reviewsMap, setReviewsMap] = useState({});
-    const [editingReviewId, setEditingReviewId] = useState(null);
-    const [editReviewText, setEditReviewText] = useState("");
+    const [reviewText, setReviewText] = useState('');
     const [reviewRating, setReviewRating] = useState(5);
+    const [editingReviewId, setEditingReviewId] = useState(null);
+    const [editReviewText, setEditReviewText] = useState('');
     const [cancelModalOpen, setCancelModalOpen] = useState(false);
     const [targetCancelOrderId, setTargetCancelOrderId] = useState(null);
-    const [cancelReason, setCancelReason] = useState("");
+    const [cancelReason, setCancelReason] = useState('');
 
-    const fetchOrders = async () => {
-        if (!userToken) return;
-        setLoading(true);
+    const renderStars = (rating) => {
+        const n = Math.max(0, Math.min(5, Number(rating) || 0));
+        return '★'.repeat(n) + '☆'.repeat(5 - n);
+    };
+
+    const handleOpenDetail = async (orderId) => {
         try {
-            const response = await fetch(`${API_BASE_URL}/api/orders`, {
-                headers: { 'Authorization': `Bearer ${userToken}` }
-            });
-            if (response.ok) setOrders(await response.json());
-        } catch (error) {
-            console.error("주문 목록 로드 실패:", error);
-        } finally {
-            setLoading(false);
+            const detail = await fetchOrderDetail(orderId);
+            setSelectedOrder(detail);
+        } catch {
+            alert('상세 정보 로드 실패');
         }
     };
 
-    const fetchOrderDetails = async (orderId) => {
-        try {
-            const response = await fetch(`${API_BASE_URL}/api/orders/${orderId}`, {
-                headers: { 'Authorization': `Bearer ${userToken}` }
-            });
-            if (response.ok) setSelectedOrder(await response.json());
-        } catch (error) {
-            alert("상세 정보 로드 실패");
+    const handleToggleReview = async (pId) => {
+        if (selectedProductId === pId) {
+            setSelectedProductId(null);
+            return;
         }
-    };
-
-    const loadReviews = async (pId) => {
-        try {
-            const response = await fetch(`${API_BASE_URL}/api/reviews/product/${pId}`, {
-                headers: { 'Authorization': `Bearer ${userToken}` }
-            });
-            if (response.ok) {
-                const data = await response.json();
-                setReviewsMap(prev => ({ ...prev, [String(pId)]: data }));
-            }
-        } catch (error) {
-            console.error("리뷰 로드 실패:", error);
-        }
+        setSelectedProductId(pId);
+        const reviews = await loadReviews(pId);
+        setReviewsMap(prev => ({ ...prev, [pId]: reviews ?? [] }));
     };
 
     const handleReviewSubmit = async (pId) => {
         if (!reviewText.trim()) return;
-        try {
-            const response = await fetch(`${API_BASE_URL}/api/reviews`, {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${userToken}`,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ productId: pId, content: reviewText, rating: reviewRating })
-            });
-            if (response.ok) {
-                setReviewText("");
-                setReviewRating(5);
-                loadReviews(pId);
-            }
-        } catch (error) {
-            console.error("리뷰 등록 실패:", error);
-        }
+        await submitReview(pId, reviewText, reviewRating);
+        setReviewText('');
+        setReviewRating(5);
+        const reviews = await loadReviews(pId);
+        setReviewsMap(prev => ({ ...prev, [pId]: reviews ?? [] }));
     };
 
     const handleReviewUpdate = async (reviewId, pId) => {
         if (!editReviewText.trim()) return;
-        try {
-            const response = await fetch(`${API_BASE_URL}/api/reviews/${reviewId}`, {
-                method: 'PUT',
-                headers: {
-                    'Authorization': `Bearer ${userToken}`,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ content: editReviewText, rating: reviewRating })
-            });
-            if (response.ok) {
-                setEditingReviewId(null);
-                loadReviews(pId);
-            }
-        } catch (error) {
-            console.error("리뷰 수정 실패:", error);
-        }
+        await updateReview(reviewId, editReviewText, reviewRating);
+        setEditingReviewId(null);
+        const reviews = await loadReviews(pId);
+        setReviewsMap(prev => ({ ...prev, [pId]: reviews ?? [] }));
     };
 
-    const handleReviewDelete = async (reviewId, pId, userName) => {
-        if (!window.confirm("삭제하시겠습니까?")) return;
-        try {
-            const response = await fetch(`${API_BASE_URL}/api/reviews/${reviewId}`, {
-                method: 'DELETE',
-                headers: {
-                    'Authorization': `Bearer ${userToken}`,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ username: userName })
-            });
-            if (response.ok) loadReviews(pId);
-        } catch (error) {
-            console.error("삭제 실패:", error);
-        }
+    const handleReviewDelete = async (reviewId, pId) => {
+        if (!window.confirm('삭제하시겠습니까?')) return;
+        await deleteReview(reviewId);
+        const reviews = await loadReviews(pId);
+        setReviewsMap(prev => ({ ...prev, [pId]: reviews ?? [] }));
     };
 
     const handleCancelSubmit = async () => {
         if (!cancelReason.trim()) {
-            alert("주문 취소 사유를 입력해주세요.");
+            alert('주문 취소 사유를 입력해주세요.');
             return;
         }
-
-        if (!window.confirm("정말로 이 주문을 취소하시겠습니까?")) return;
-
+        if (!window.confirm('정말로 이 주문을 취소하시겠습니까?')) return;
         try {
-            const response = await fetch(`${API_BASE_URL}/api/orders/${targetCancelOrderId}/cancel`, {
-                method: 'PATCH',
-                headers: {
-                    'Authorization': `Bearer ${userToken}`,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ reason: cancelReason })
-            });
-
-            if (response.ok) {
-                alert("주문이 성공적으로 취소되었습니다.");
-                setCancelModalOpen(false);
-                setCancelReason("");
-                setSelectedOrder(null);
-                fetchOrders();
-            } else {
-                alert("취소 처리에 실패했습니다.");
-            }
-        } catch (error) {
-            console.error("주문 취소 에러:", error);
+            await cancelOrder(targetCancelOrderId, cancelReason);
+            alert('주문이 취소되었습니다.');
+            setCancelModalOpen(false);
+            setCancelReason('');
+            setSelectedOrder(null);
+        } catch (err) {
+            alert('취소 실패: ' + err.message);
         }
     };
 
-    // 🟢 별점 출력을 위한 안전한 함수 (오류 방지)
-    const renderStars = (rating) => {
-        const validRating = Math.max(0, Math.min(5, Number(rating) || 0));
-        return "★".repeat(validRating) + "☆".repeat(5 - validRating);
-    };
-
-    useEffect(() => { fetchOrders(); }, [userToken, updateFlag]);
-
-    if (!userToken) return <div style={{ padding: '20px' }}>로그인이 필요합니다.</div>;
+    if (!token) return <div style={{ padding: '20px' }}>로그인이 필요합니다.</div>;
 
     return (
         <div style={containerStyle}>
-            <h3>📦 나의 주문 내역</h3>
+            <h3>나의 주문 내역</h3>
             {loading ? <p>로딩 중...</p> : (
                 <div style={gridStyle}>
                     {orders.map(order => (
-                        <div key={`order-${order.id}`} onClick={() => fetchOrderDetails(order.id)} style={cardStyle}>
+                        <div key={`order-${order.id}`} onClick={() => handleOpenDetail(order.id)} style={cardStyle}>
                             <div style={cardHeaderStyle}>
                                 <strong>주문번호: {order.id}</strong>
                                 <span style={statusBadgeStyle(order.status)}>{order.status}</span>
@@ -182,13 +117,12 @@ const OrderList = ({ userToken, updateFlag, currentUserName }) => {
                             {selectedOrder.orderItems?.map((item, idx) => {
                                 const pId = String(item.productId);
                                 return (
-                                    <div key={`item-${item.id || idx}`} style={itemBoxStyle}>
+                                    <div key={`item-${item.id ?? idx}`} style={itemBoxStyle}>
                                         <div style={itemInfoStyle}>
                                             <span>{item.productName} ({item.quantity}개)</span>
-                                            <button onClick={() => {
-                                                setSelectedProductId(selectedProductId === pId ? null : pId);
-                                                if (selectedProductId !== pId) loadReviews(pId);
-                                            }} style={reviewOpenBtnStyle}>리뷰관리</button>
+                                            <button onClick={() => handleToggleReview(pId)} style={reviewOpenBtnStyle}>
+                                                리뷰관리
+                                            </button>
                                         </div>
 
                                         {selectedProductId === pId && (
@@ -208,10 +142,8 @@ const OrderList = ({ userToken, updateFlag, currentUserName }) => {
                                                 <div style={reviewListStyle}>
                                                     {reviewsMap[pId]?.map((rev, index) => {
                                                         const isEditing = editingReviewId === rev.id;
-                                                        const reviewKey = rev.id ? `rev-${rev.id}` : `rev-idx-${pId}-${index}`;
-
                                                         return (
-                                                            <div key={reviewKey} style={reviewItemStyle}>
+                                                            <div key={rev.id ? `rev-${rev.id}` : `rev-idx-${pId}-${index}`} style={reviewItemStyle}>
                                                                 {isEditing ? (
                                                                     <div style={{ display: 'flex', gap: '5px', width: '100%' }}>
                                                                         <input
@@ -230,17 +162,12 @@ const OrderList = ({ userToken, updateFlag, currentUserName }) => {
                                                                             </div>
                                                                             <span><strong>{rev.username}</strong>: {rev.content}</span>
                                                                         </div>
-                                                                        <div style={{ display: 'flex', gap: '3px' }}>
-                                                                            {rev.username === currentUserName && (
-                                                                                <>
-                                                                                    <button onClick={() => {
-                                                                                        setEditingReviewId(rev.id);
-                                                                                        setEditReviewText(rev.content);
-                                                                                    }} style={editBtnStyle}>수정</button>
-                                                                                    <button onClick={() => handleReviewDelete(rev.id, pId, currentUserName)} style={delBtnStyle}>삭제</button>
-                                                                                </>
-                                                                            )}
-                                                                        </div>
+                                                                        {rev.username === currentUserName && (
+                                                                            <div style={{ display: 'flex', gap: '3px' }}>
+                                                                                <button onClick={() => { setEditingReviewId(rev.id); setEditReviewText(rev.content); }} style={editBtnStyle}>수정</button>
+                                                                                <button onClick={() => handleReviewDelete(rev.id, pId)} style={delBtnStyle}>삭제</button>
+                                                                            </div>
+                                                                        )}
                                                                     </div>
                                                                 )}
                                                             </div>
@@ -258,19 +185,15 @@ const OrderList = ({ userToken, updateFlag, currentUserName }) => {
                             <div style={{ display: 'flex', gap: '10px' }}>
                                 {selectedOrder.status !== 'CANCELED' && (
                                     <button
-                                        onClick={() => {
-                                            setTargetCancelOrderId(selectedOrder.id);
-                                            setCancelModalOpen(true);
-                                        }}
+                                        onClick={() => { setTargetCancelOrderId(selectedOrder.id); setCancelModalOpen(true); }}
                                         style={{ ...closeBtnStyle, background: '#ff4d4f' }}
                                     >
                                         주문 취소
                                     </button>
                                 )}
-                                <button onClick={() => {
-                                    setSelectedOrder(null);
-                                    setSelectedProductId(null);
-                                }} style={closeBtnStyle}>닫기</button>
+                                <button onClick={() => { setSelectedOrder(null); setSelectedProductId(null); }} style={closeBtnStyle}>
+                                    닫기
+                                </button>
                             </div>
                         </div>
                     </div>
@@ -281,9 +204,7 @@ const OrderList = ({ userToken, updateFlag, currentUserName }) => {
                 <div style={{ ...modalOverlayStyle, zIndex: 1100 }}>
                     <div style={modalContentStyle}>
                         <h3 style={{ marginTop: 0, color: '#ff4d4f' }}>주문 취소</h3>
-                        <p style={{ fontSize: '14px', marginBottom: '10px' }}>
-                            취소 사유를 입력해 주세요.
-                        </p>
+                        <p style={{ fontSize: '14px', marginBottom: '10px' }}>취소 사유를 입력해 주세요.</p>
                         <textarea
                             style={{ width: '100%', height: '80px', padding: '10px', marginBottom: '15px', borderRadius: '5px', border: '1px solid #ccc', resize: 'none' }}
                             placeholder="예: 단순 변심, 배송 지연 등"
@@ -291,12 +212,8 @@ const OrderList = ({ userToken, updateFlag, currentUserName }) => {
                             onChange={(e) => setCancelReason(e.target.value)}
                         />
                         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
-                            <button onClick={() => setCancelModalOpen(false)} style={{ ...closeBtnStyle, background: '#666' }}>
-                                닫기
-                            </button>
-                            <button onClick={handleCancelSubmit} style={{ ...submitBtnStyle, background: '#ff4d4f' }}>
-                                취소 완료
-                            </button>
+                            <button onClick={() => setCancelModalOpen(false)} style={{ ...closeBtnStyle, background: '#666' }}>닫기</button>
+                            <button onClick={handleCancelSubmit} style={{ ...submitBtnStyle, background: '#ff4d4f' }}>취소 완료</button>
                         </div>
                     </div>
                 </div>

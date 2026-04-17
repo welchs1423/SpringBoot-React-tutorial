@@ -1,0 +1,61 @@
+import { useState, useCallback, useEffect } from 'react';
+import { apiClient } from '../api/apiClient';
+
+export function useOrders(token, refreshFlag) {
+    const [orders, setOrders] = useState([]);
+    const [loading, setLoading] = useState(false);
+
+    const fetchOrders = useCallback(async () => {
+        if (!token) return;
+        setLoading(true);
+        try {
+            const data = await apiClient.get('/orders');
+            setOrders(data ?? []);
+        } catch (err) {
+            console.error('주문 목록 로드 실패:', err.message);
+        } finally {
+            setLoading(false);
+        }
+    }, [token]);
+
+    useEffect(() => {
+        fetchOrders();
+    }, [fetchOrders, refreshFlag]);
+
+    const fetchOrderDetail = useCallback(async (orderId) => {
+        return apiClient.get(`/orders/${orderId}`);
+    }, []);
+
+    const cancelOrder = useCallback(async (orderId, reason) => {
+        await apiClient.patch(`/orders/${orderId}/cancel`, { reason });
+        await fetchOrders();
+    }, [fetchOrders]);
+
+    const loadReviews = useCallback(async (productId) => {
+        return apiClient.get(`/reviews/product/${productId}`);
+    }, []);
+
+    const submitReview = useCallback(async (productId, content, rating) => {
+        await apiClient.post('/reviews', { productId, content, rating });
+    }, []);
+
+    const updateReview = useCallback(async (reviewId, content, rating) => {
+        await apiClient.put(`/reviews/${reviewId}`, { content, rating });
+    }, []);
+
+    const deleteReview = useCallback(async (reviewId) => {
+        await apiClient.delete(`/reviews/${reviewId}`);
+    }, []);
+
+    return {
+        orders,
+        loading,
+        fetchOrderDetail,
+        cancelOrder,
+        loadReviews,
+        submitReview,
+        updateReview,
+        deleteReview,
+        refetch: fetchOrders,
+    };
+}

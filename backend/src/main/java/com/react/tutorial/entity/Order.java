@@ -4,8 +4,8 @@ import com.react.tutorial.dto.OrderStatus;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
-import lombok.NoArgsConstructor; // ⭐️ 추가
-import lombok.AllArgsConstructor; // ⭐️ 추가
+import lombok.NoArgsConstructor;
+import lombok.AllArgsConstructor;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -15,8 +15,8 @@ import java.util.List;
 @Table(name = "orders")
 @Getter
 @Setter
-@NoArgsConstructor // ⭐️ 추가
-@AllArgsConstructor // ⭐️ 추가
+@NoArgsConstructor
+@AllArgsConstructor
 public class Order {
 
     @Id
@@ -34,7 +34,6 @@ public class Order {
 
     private int totalAmount;
 
-    // 배송 정보 스냅샷
     @Column(nullable = false)
     private String receiverName;
 
@@ -52,11 +51,8 @@ public class Order {
     @Column(name = "payment_key")
     private String paymentKey;
 
-    public String getPaymentKey() {return paymentKey;}
-    public void setPaymentKey(String paymentKey) {this.paymentKey = paymentKey;}
-
     @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<OrderItem> orderItems = new ArrayList<>();
 
-    private String cancelReason;    // 취소, 반품 사유
+    private String cancelReason;
 }

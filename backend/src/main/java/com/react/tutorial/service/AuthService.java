@@ -4,8 +4,10 @@ import com.react.tutorial.dto.LoginRequest;
 import com.react.tutorial.dto.RegisterRequest;
 import com.react.tutorial.dto.TokenResponse;
 import com.react.tutorial.entity.User;
+import com.react.tutorial.exception.BusinessException;
 import com.react.tutorial.repository.UserRepository;
 import jakarta.transaction.Transactional;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
@@ -64,9 +66,8 @@ public class AuthService {
      */
     public void registerNewUser(RegisterRequest registerRequest){
         
-        // 중복 확인 로직
-        if(userRepository.findByUsername(registerRequest.getUsername()).isPresent()){
-            throw new IllegalArgumentException("이미 존재하는 사용자 이름입니다,");
+        if (userRepository.findByUsername(registerRequest.getUsername()).isPresent()) {
+            throw new BusinessException("이미 존재하는 사용자 이름입니다.", HttpStatus.CONFLICT);
         }
         
         // 1. DTO를 Entity로 변환 및 비밀번호 암호화
