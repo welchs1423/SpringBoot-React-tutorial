@@ -16,6 +16,7 @@ Spring Boot와 React를 이용한 풀스택 쇼핑몰 구축 및 실무 환경 �
 
 * [Completed] 관리자(Admin) 상품 관리 API 및 UI 뼈대 구축
 * [Completed] 사용자 리뷰 시스템 구현 및 주문 상태 관리 고도화(DELIVERED) 완료
+* [Completed] 쿠폰/포인트 시스템 및 결제 할인 연동
 
 ### [2026-04-17] [Completed] 재고 차감 동시성 제어 — 비관적 락(Pessimistic Lock) 적용
 

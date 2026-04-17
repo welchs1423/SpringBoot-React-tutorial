@@ -18,20 +18,39 @@ public class DatabaseInitializer implements CommandLineRunner {
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+    private final CouponRepository couponRepository;
 
     @Override
     @SuppressWarnings("null")
     public void run(String... args) throws Exception {
-        // 관리자 계정 'admin'이 없을 경우 자동 생성
         if (userRepository.findByUsername("admin").isEmpty()) {
             User adminUser = User.builder()
                     .username("admin")
-                    // 비밀번호: adminpass
                     .password(passwordEncoder.encode("adminpass"))
-                    .role("ROLE_ADMIN") // ⭐️ 관리자 권한 부여
+                    .role("ROLE_ADMIN")
                     .build();
             userRepository.save(adminUser);
-            System.out.println("--- ⭐️ 관리자 계정 'admin'이 생성되었습니다. ---");
+            System.out.println("--- 관리자 계정 'admin'이 생성되었습니다. ---");
+        }
+
+        if (couponRepository.count() == 0) {
+            Coupon fixed = new Coupon();
+            fixed.setName("신규가입 5000원 할인");
+            fixed.setType(CouponType.FIXED);
+            fixed.setDiscountValue(5000);
+            fixed.setMinOrderAmount(20000);
+            fixed.setExpiryDate(LocalDate.now().plusYears(1));
+            couponRepository.save(fixed);
+
+            Coupon percent = new Coupon();
+            percent.setName("10% 할인 쿠폰");
+            percent.setType(CouponType.PERCENTAGE);
+            percent.setDiscountValue(10);
+            percent.setMinOrderAmount(10000);
+            percent.setExpiryDate(LocalDate.now().plusYears(1));
+            couponRepository.save(percent);
+
+            System.out.println("--- 샘플 쿠폰 2종이 생성되었습니다. ---");
         }
     }
 }
