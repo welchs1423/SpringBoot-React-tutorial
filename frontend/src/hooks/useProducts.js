@@ -39,9 +39,20 @@ export function useProducts() {
         return apiClient.post('/products', { ...formData, imageUrl });
     }, []);
 
-    const deleteProduct = useCallback(async (productId) => {
-        await apiClient.delete(`/products/${productId}`);
+    const updateProduct = useCallback(async (productId, formData, file) => {
+        let imageUrl = formData.imageUrl ?? '';
+        if (file) {
+            const fd = new FormData();
+            fd.append('file', file);
+            const uploadResult = await apiClient.upload('/upload', fd);
+            imageUrl = uploadResult.imageUrl ?? '';
+        }
+        return apiClient.put(`/admin/products/${productId}`, { ...formData, imageUrl });
     }, []);
 
-    return { products, loading, error, fetchProducts, createProduct, deleteProduct };
+    const deleteProduct = useCallback(async (productId) => {
+        await apiClient.delete(`/admin/products/${productId}`);
+    }, []);
+
+    return { products, loading, error, fetchProducts, createProduct, updateProduct, deleteProduct };
 }

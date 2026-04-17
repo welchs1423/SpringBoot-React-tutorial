@@ -158,9 +158,26 @@ public class OrderService {
         return newAddress;
     }
 
+    @Transactional
+    public void deliverOrder(Long orderId) {
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new BusinessException("주문을 찾을 수 없습니다.", HttpStatus.NOT_FOUND));
+        if (order.getStatus() != OrderStatus.PAID) {
+            throw new BusinessException("결제 완료 상태의 주문만 배송 완료 처리할 수 있습니다.", HttpStatus.BAD_REQUEST);
+        }
+        order.setStatus(OrderStatus.DELIVERED);
+    }
+
+    public List<OrderResponseDTO> getAllOrders() {
+        return orderRepository.findAllWithItemsOrderByDateDesc().stream()
+                .map(this::toDTO)
+                .collect(Collectors.toList());
+    }
+
     private OrderResponseDTO toDTO(Order order) {
         return OrderResponseDTO.builder()
                 .id(order.getId())
+                .username(order.getUser().getUsername())
                 .orderDate(order.getOrderDate())
                 .receiverName(order.getReceiverName())
                 .address(order.getAddress())

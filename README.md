@@ -12,6 +12,10 @@ Spring Boot와 React를 이용한 풀스택 쇼핑몰 구축 및 실무 환경 �
 
 ## 업데이트 기록
 
+### [2026-04-18]
+
+* [Completed] 관리자(Admin) 상품 관리 API 및 UI 뼈대 구축
+
 ### [2026-04-17] [Completed] 재고 차감 동시성 제어 — 비관적 락(Pessimistic Lock) 적용
 
 **동시성 문제 해결 (`ProductRepository`, `OrderService`)**

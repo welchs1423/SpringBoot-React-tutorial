@@ -2,9 +2,8 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import CartList from './CartList';
 import OrderList from './OrderList';
 import AuthManager from './AuthManager';
-import ProductManager from './ProductManager';
 import CheckoutTest from './CheckoutTest';
-import ProductForm from './components/ProductForm';
+import AdminDashboard from './AdminDashboard';
 import { useAuth } from './hooks/useAuth';
 import { useProducts } from './hooks/useProducts';
 import { apiClient } from './api/apiClient';
@@ -17,6 +16,8 @@ function App() {
     const [searchTerm, setSearchTerm] = useState('');
     const [cartMessage, setCartMessage] = useState(null);
     const [cartUpdateFlag, setCartUpdateFlag] = useState(0);
+    const [reviewPanelId, setReviewPanelId] = useState(null);
+    const [reviewsCache, setReviewsCache] = useState({});
 
     useEffect(() => {
         fetchProducts();
@@ -70,6 +71,23 @@ function App() {
         setTimeout(() => setCartMessage(null), 3000);
     }, [isLoggedIn]);
 
+    const handleToggleReviews = useCallback(async (productId) => {
+        const pid = String(productId);
+        if (reviewPanelId === pid) {
+            setReviewPanelId(null);
+            return;
+        }
+        setReviewPanelId(pid);
+        if (!reviewsCache[pid]) {
+            try {
+                const data = await apiClient.get(`/reviews/product/${productId}`);
+                setReviewsCache(prev => ({ ...prev, [pid]: data ?? [] }));
+            } catch {
+                setReviewsCache(prev => ({ ...prev, [pid]: [] }));
+            }
+        }
+    }, [reviewPanelId, reviewsCache]);
+
     const filteredProducts = useMemo(
         () => products.filter(p => p.name.toLowerCase().includes(searchTerm.toLowerCase())),
         [products, searchTerm]
@@ -104,10 +122,7 @@ function App() {
             />
 
             {view === 'admin' && (
-                <>
-                    <ProductForm role={role} onCreated={fetchProducts} />
-                    <ProductManager token={token} />
-                </>
+                <AdminDashboard role={role} onProductChanged={fetchProducts} />
             )}
 
             {view === 'orders' && (
@@ -167,6 +182,34 @@ function App() {
                                     >
                                         {product.stockQuantity > 0 ? '담기' : '품절된 상품'}
                                     </button>
+                                    <button
+                                        onClick={() => handleToggleReviews(product.id)}
+                                        style={{ width: '100%', marginTop: '8px', padding: '8px', backgroundColor: '#f8f9fa', color: '#495057', border: '1px solid #dee2e6', borderRadius: '6px', cursor: 'pointer', fontSize: '13px' }}
+                                    >
+                                        {reviewPanelId === String(product.id) ? '리뷰 닫기' : '리뷰 보기'}
+                                    </button>
+                                    {reviewPanelId === String(product.id) && (() => {
+                                        const revs = reviewsCache[String(product.id)] ?? [];
+                                        const avg = revs.length > 0
+                                            ? (revs.reduce((s, r) => s + r.rating, 0) / revs.length).toFixed(1)
+                                            : null;
+                                        return (
+                                            <div style={{ marginTop: '10px', padding: '10px', background: '#f9f9f9', borderRadius: '8px', fontSize: '13px' }}>
+                                                <div style={{ marginBottom: '8px', fontWeight: 'bold', color: '#ffc107' }}>
+                                                    {avg ? `평균 별점: ${'★'.repeat(Math.round(avg))}${'☆'.repeat(5 - Math.round(avg))} (${avg})` : '리뷰 없음'}
+                                                    {revs.length > 0 && <span style={{ color: '#666', fontWeight: 'normal', marginLeft: '6px' }}>({revs.length}개)</span>}
+                                                </div>
+                                                <div style={{ display: 'grid', gap: '6px', maxHeight: '200px', overflowY: 'auto' }}>
+                                                    {revs.map((rev, i) => (
+                                                        <div key={rev.id ?? i} style={{ background: '#fff', border: '1px solid #eee', borderRadius: '6px', padding: '8px' }}>
+                                                            <div style={{ color: '#ffc107', fontSize: '12px' }}>{'★'.repeat(rev.rating)}{'☆'.repeat(5 - rev.rating)}</div>
+                                                            <div><strong style={{ fontSize: '12px' }}>{rev.username}</strong><span style={{ marginLeft: '6px', color: '#333' }}>{rev.content}</span></div>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        );
+                                    })()}
                                 </div>
                             ))}
                         </div>

@@ -47,6 +47,14 @@ export function useOrders(token, refreshFlag) {
         await apiClient.delete(`/reviews/${reviewId}`);
     }, []);
 
+    const fetchAllOrdersAdmin = useCallback(async () => {
+        return apiClient.get('/admin/orders');
+    }, []);
+
+    const deliverOrder = useCallback(async (orderId) => {
+        await apiClient.patch(`/admin/orders/${orderId}/deliver`, {});
+    }, []);
+
     return {
         orders,
         loading,
@@ -56,6 +64,8 @@ export function useOrders(token, refreshFlag) {
         submitReview,
         updateReview,
         deleteReview,
+        fetchAllOrdersAdmin,
+        deliverOrder,
         refetch: fetchOrders,
     };
 }

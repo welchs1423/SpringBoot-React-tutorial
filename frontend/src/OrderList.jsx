@@ -117,13 +117,16 @@ const OrderList = ({ token, updateFlag, currentUserName }) => {
                         <div style={scrollAreaStyle}>
                             {selectedOrder.orderItems?.map((item, idx) => {
                                 const pId = String(item.productId);
+                                const canReview = selectedOrder.status === 'DELIVERED';
                                 return (
                                     <div key={`item-${item.id ?? idx}`} style={itemBoxStyle}>
                                         <div style={itemInfoStyle}>
                                             <span>{item.productName} ({item.quantity}개)</span>
-                                            <button onClick={() => handleToggleReview(pId)} style={reviewOpenBtnStyle}>
-                                                리뷰관리
-                                            </button>
+                                            {canReview && (
+                                                <button onClick={() => handleToggleReview(pId)} style={reviewOpenBtnStyle}>
+                                                    리뷰 쓰기
+                                                </button>
+                                            )}
                                         </div>
 
                                         {selectedProductId === pId && (
@@ -224,9 +227,11 @@ const OrderList = ({ token, updateFlag, currentUserName }) => {
 };
 
 const STATUS_LABEL = {
-    ORDERED:  '주문 완료',
-    PAID:     '결제 완료',
-    CANCELED: '결제 취소',
+    ORDERED:   '주문 완료',
+    PAID:      '결제 완료',
+    SHIPPING:  '배송 중',
+    DELIVERED: '배송 완료',
+    CANCELED:  '결제 취소',
 };
 
 const containerStyle = { padding: '20px', maxWidth: '800px', margin: '0 auto' };
@@ -235,9 +240,11 @@ const cardStyle = { padding: '15px', border: '1px solid #eee', borderRadius: '12
 const cardHeaderStyle = { display: 'flex', justifyContent: 'space-between', marginBottom: '10px' };
 const cardBodyStyle = { color: '#666', fontSize: '14px' };
 const STATUS_BADGE_CONFIG = {
-    ORDERED:  { background: '#e3f2fd', color: '#1565c0' },
-    PAID:     { background: '#e8f5e9', color: '#2e7d32' },
-    CANCELED: { background: '#fce4ec', color: '#c62828' },
+    ORDERED:   { background: '#e3f2fd', color: '#1565c0' },
+    PAID:      { background: '#e8f5e9', color: '#2e7d32' },
+    SHIPPING:  { background: '#fff8e1', color: '#f57f17' },
+    DELIVERED: { background: '#e8f5e9', color: '#1b5e20' },
+    CANCELED:  { background: '#fce4ec', color: '#c62828' },
 };
 const statusBadgeStyle = (s) => ({
     padding: '3px 8px', borderRadius: '20px', fontSize: '12px',

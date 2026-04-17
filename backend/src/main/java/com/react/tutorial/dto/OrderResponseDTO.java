@@ -12,6 +12,7 @@ import java.util.List;
 @Builder
 public class OrderResponseDTO {
     private Long id;
+    private String username;
     private LocalDateTime orderDate;
     private String receiverName;
     private String address;
