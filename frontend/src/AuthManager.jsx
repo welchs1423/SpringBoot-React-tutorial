@@ -61,6 +61,14 @@ const AuthManager = ({ isLoggedIn, role, username, onLogin, onRegister, onLogout
         showMessage('success', '로그아웃되었습니다.');
     };
 
+    const handleGoogleLogin = () => {
+        window.location.href = 'http://localhost:8080/oauth2/authorization/google';
+    };
+
+    const handleKakaoLogin = () => {
+        window.location.href = 'http://localhost:8080/oauth2/authorization/kakao';
+    };
+
     return (
         <div style={{ border: '1px solid #ddd', padding: '20px', marginBottom: '30px' }}>
             {isLoggedIn ? (
@@ -71,30 +79,48 @@ const AuthManager = ({ isLoggedIn, role, username, onLogin, onRegister, onLogout
                     </button>
                 </>
             ) : (
-                <form style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-                    <input
-                        type="text"
-                        placeholder="사용자 ID"
-                        value={inputUsername}
-                        onChange={(e) => setInputUsername(e.target.value)}
-                        style={{ padding: '8px' }}
-                    />
-                    <input
-                        type="password"
-                        placeholder="비밀번호"
-                        value={inputPassword}
-                        onChange={(e) => setInputPassword(e.target.value)}
-                        style={{ padding: '8px' }}
-                    />
-                    <select value={inputRole} onChange={(e) => setInputRole(e.target.value)} style={{ padding: '8px' }}>
-                        <option value="ROLE_USER">일반 사용자</option>
-                        <option value="ROLE_ADMIN">관리자</option>
-                    </select>
-                    <button onClick={handleLogin} style={{ padding: '8px 15px' }}>로그인</button>
-                    <button onClick={handleSignup} style={{ padding: '8px 15px', backgroundColor: '#2196F3', color: 'white' }}>
-                        회원가입
-                    </button>
-                </form>
+                <>
+                    <form style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
+                        <input
+                            type="text"
+                            placeholder="사용자 ID"
+                            value={inputUsername}
+                            onChange={(e) => setInputUsername(e.target.value)}
+                            style={{ padding: '8px' }}
+                        />
+                        <input
+                            type="password"
+                            placeholder="비밀번호"
+                            value={inputPassword}
+                            onChange={(e) => setInputPassword(e.target.value)}
+                            style={{ padding: '8px' }}
+                        />
+                        <select value={inputRole} onChange={(e) => setInputRole(e.target.value)} style={{ padding: '8px' }}>
+                            <option value="ROLE_USER">일반 사용자</option>
+                            <option value="ROLE_ADMIN">관리자</option>
+                        </select>
+                        <button onClick={handleLogin} style={{ padding: '8px 15px' }}>로그인</button>
+                        <button onClick={handleSignup} style={{ padding: '8px 15px', backgroundColor: '#2196F3', color: 'white', border: 'none' }}>
+                            회원가입
+                        </button>
+                    </form>
+                    <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
+                        <button
+                            onClick={handleGoogleLogin}
+                            style={{ padding: '8px 16px', backgroundColor: '#fff', border: '1px solid #ddd', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }}
+                        >
+                            <img src="https://developers.google.com/identity/images/g-logo.png" alt="Google" style={{ width: '18px', height: '18px' }} />
+                            Google로 로그인
+                        </button>
+                        <button
+                            onClick={handleKakaoLogin}
+                            style={{ padding: '8px 16px', backgroundColor: '#FEE500', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }}
+                        >
+                            <span style={{ fontWeight: 'bold', color: '#3C1E1E' }}>K</span>
+                            카카오로 로그인
+                        </button>
+                    </div>
+                </>
             )}
 
             {message && (

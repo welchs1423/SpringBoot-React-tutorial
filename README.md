@@ -17,6 +17,12 @@ Spring Boot와 React를 이용한 풀스택 쇼핑몰 구축 및 실무 환경 �
 * [Completed] 관리자(Admin) 상품 관리 API 및 UI 뼈대 구축
 * [Completed] 사용자 리뷰 시스템 구현 및 주문 상태 관리 고도화(DELIVERED) 완료
 * [Completed] 쿠폰/포인트 시스템 및 결제 할인 연동
+* [Completed] `OrderService` Null 타입 안전성 경고 해소
+* [Completed] OAuth2 소셜 로그인 및 JWT 보안 아키텍처 구축
+
+**`OrderService` — `@NonNull Long` 타입 불일치 경고 수정**
+- `userRepository.findById(user.getId())`, `userCouponRepository.findById(request.getCouponId())` 등 5개 호출부에서 JDT가 `Long` → `@NonNull Long` unchecked conversion 경고를 발생시키던 문제 수정.
+- `Objects.requireNonNull()` 래핑으로 컴파일러에 비-null 보장을 명시적으로 전달, 기존 `@SuppressWarnings("null")` 억제 패턴 대신 실질적 픽스 방식으로 통일.
 
 ### [2026-04-17] [Completed] 재고 차감 동시성 제어 — 비관적 락(Pessimistic Lock) 적용
 

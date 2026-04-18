@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 
 const SESSION_KEYS = { token: 'token', role: 'role', username: 'username' };
 
@@ -15,6 +15,24 @@ export function useAuth() {
     const [token, setToken] = useState(saved.token);
     const [role, setRole] = useState(saved.role);
     const [username, setUsername] = useState(saved.username);
+
+    // OAuth2 콜백 처리: /oauth2/callback?token=...&role=...&username=...
+    useEffect(() => {
+        if (window.location.pathname !== '/oauth2/callback') return;
+        const params = new URLSearchParams(window.location.search);
+        const t = params.get('token');
+        const r = params.get('role');
+        const u = params.get('username');
+        if (t) {
+            sessionStorage.setItem(SESSION_KEYS.token, t);
+            sessionStorage.setItem(SESSION_KEYS.role, r ?? 'ROLE_USER');
+            sessionStorage.setItem(SESSION_KEYS.username, u ?? '');
+            setToken(t);
+            setRole(r ?? 'ROLE_USER');
+            setUsername(u ?? '');
+            window.history.replaceState({}, document.title, '/');
+        }
+    }, []);
 
     const login = useCallback(async (credentials) => {
         const response = await fetch('/api/auth/login', {

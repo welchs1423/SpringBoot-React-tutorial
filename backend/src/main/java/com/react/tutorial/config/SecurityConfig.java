@@ -1,6 +1,7 @@
 package com.react.tutorial.config;
 
 import com.react.tutorial.filter.JwtAuthenticationFilter;
+import com.react.tutorial.service.CustomOAuth2UserService;
 import com.react.tutorial.service.CustomUserDetailsService;
 import com.react.tutorial.service.JwtTokenProvider;
 import org.springframework.context.annotation.Bean;
@@ -33,11 +34,17 @@ public class SecurityConfig {
 
     private final JwtAccessDeniedHandler jwtAccessDeniedHandler;
     private final DebugFilter debugFilter;
+    private final CustomOAuth2UserService customOAuth2UserService;
+    private final OAuth2AuthenticationSuccessHandler oAuth2SuccessHandler;
 
     public SecurityConfig(JwtAccessDeniedHandler jwtAccessDeniedHandler,
-                          DebugFilter debugFilter) {
+                          DebugFilter debugFilter,
+                          CustomOAuth2UserService customOAuth2UserService,
+                          OAuth2AuthenticationSuccessHandler oAuth2SuccessHandler) {
         this.jwtAccessDeniedHandler = jwtAccessDeniedHandler;
         this.debugFilter = debugFilter;
+        this.customOAuth2UserService = customOAuth2UserService;
+        this.oAuth2SuccessHandler = oAuth2SuccessHandler;
 
         SecurityContextHolder.setStrategyName(SecurityContextHolder.MODE_INHERITABLETHREADLOCAL);
     }
@@ -47,51 +54,54 @@ public class SecurityConfig {
         return new BCryptPasswordEncoder();
     }
 
-    // 2. JwtAuthenticationFilter Bean 등록
     @Bean
-    public JwtAuthenticationFilter jwtAuthenticationFilter(
-            JwtTokenProvider jwtTokenProvider
-    ) {
+    public JwtAuthenticationFilter jwtAuthenticationFilter(JwtTokenProvider jwtTokenProvider) {
         JwtAuthenticationFilter filter = new JwtAuthenticationFilter(jwtTokenProvider);
-
         filter.setPermittedUrls(Arrays.asList(
                 "/api/auth/login",
                 "/api/auth/register",
                 "/api/upload",
-                "/uploads/**"
+                "/uploads/**",
+                "/oauth2/**",
+                "/login/oauth2/**"
         ));
-
         return filter;
     }
 
     @Bean
-    public JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint(){
+    public JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint() {
         return new JwtAuthenticationEntryPoint();
     }
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http,
                                                    JwtAuthenticationFilter jwtAuthenticationFilter,
-                                                   JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint) throws Exception{
+                                                   JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint) throws Exception {
         http
                 .cors(Customizer.withDefaults())
                 .csrf(AbstractHttpConfigurer::disable)
-                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED))
                 .httpBasic(httpBasic -> httpBasic.disable())
                 .formLogin(formLogin -> formLogin.disable())
 
-                // 요청 권한 설정
                 .authorizeHttpRequests(authorize -> authorize
-                        .requestMatchers(HttpMethod.POST, "/api/auth/**","/api/upload").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/api/auth/**", "/public/**","/uploads/**").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/auth/**", "/api/upload").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/auth/**", "/public/**", "/uploads/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/products", "/api/products/*", "/api/reviews/**").permitAll()
+                        .requestMatchers("/oauth2/**", "/login/oauth2/**").permitAll()
                         .anyRequest().authenticated()
                 )
 
-                // 예외 처리 설정
                 .exceptionHandling(handling -> handling
-                        .authenticationEntryPoint(jwtAuthenticationEntryPoint) // 401 인증 실패
-                        .accessDeniedHandler(jwtAccessDeniedHandler)         // 403 인가 실패
+                        .authenticationEntryPoint(jwtAuthenticationEntryPoint)
+                        .accessDeniedHandler(jwtAccessDeniedHandler)
+                )
+
+                .oauth2Login(oauth2 -> oauth2
+                        .userInfoEndpoint(userInfo -> userInfo
+                                .userService(customOAuth2UserService)
+                        )
+                        .successHandler(oAuth2SuccessHandler)
                 );
 
         http.addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
@@ -106,23 +116,22 @@ public class SecurityConfig {
     }
 
     @Bean
-    public CorsConfigurationSource corsConfigurationSource(){
+    public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-
-        configuration.setAllowedOrigins(Arrays.asList("http://localhost:5173","http://127.0.0.1:5173"));
-        configuration.setAllowedMethods(Arrays.asList("GET","POST","DELETE","OPTIONS","PUT","PATCH"));
+        configuration.setAllowedOrigins(Arrays.asList("http://localhost:5173", "http://127.0.0.1:5173"));
+        configuration.setAllowedMethods(Arrays.asList("GET", "POST", "DELETE", "OPTIONS", "PUT", "PATCH"));
         configuration.setAllowedHeaders(Arrays.asList("*"));
         configuration.setAllowCredentials(true);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-        source.registerCorsConfiguration("/**",configuration);  // 모든 경로에 적용
+        source.registerCorsConfiguration("/**", configuration);
         return source;
     }
 
     @Bean
-    public DaoAuthenticationProvider authenticationProvider(CustomUserDetailsService customUserDetailsService, PasswordEncoder passwordEncoder){
+    public DaoAuthenticationProvider authenticationProvider(CustomUserDetailsService customUserDetailsService,
+                                                             PasswordEncoder passwordEncoder) {
         DaoAuthenticationProvider provider = new DaoAuthenticationProvider();
-
         provider.setUserDetailsService(customUserDetailsService);
         provider.setPasswordEncoder(passwordEncoder);
         return provider;

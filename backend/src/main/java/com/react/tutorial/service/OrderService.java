@@ -12,6 +12,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 @Service
@@ -27,7 +28,7 @@ public class OrderService {
 
     @Transactional
     public Order createOrder(User user, OrderRequest request) {
-        User freshUser = userRepository.findById(user.getId())
+        User freshUser = userRepository.findById(Objects.requireNonNull(user.getId()))
                 .orElseThrow(() -> new BusinessException("사용자를 찾을 수 없습니다.", HttpStatus.NOT_FOUND));
 
         DeliveryAddress address = resolveDeliveryAddress(freshUser, request);
@@ -54,7 +55,7 @@ public class OrderService {
         int couponDiscount = 0;
         Long userCouponId = null;
         if (request.getCouponId() != null) {
-            UserCoupon userCoupon = userCouponRepository.findById(request.getCouponId())
+            UserCoupon userCoupon = userCouponRepository.findById(Objects.requireNonNull(request.getCouponId()))
                     .filter(uc -> !uc.isUsed() && uc.getCoupon().isActive()
                             && uc.getUser().getId().equals(freshUser.getId()))
                     .orElseThrow(() -> new BusinessException("유효하지 않은 쿠폰입니다.", HttpStatus.BAD_REQUEST));
@@ -148,13 +149,13 @@ public class OrderService {
         order.setCancelReason(reason);
 
         if (order.getPointDiscount() > 0) {
-            User orderUser = userRepository.findById(order.getUser().getId())
+            User orderUser = userRepository.findById(Objects.requireNonNull(order.getUser().getId()))
                     .orElseThrow(() -> new BusinessException("사용자를 찾을 수 없습니다.", HttpStatus.NOT_FOUND));
             orderUser.addPoints(order.getPointDiscount());
         }
 
         if (order.getUserCouponId() != null) {
-            userCouponRepository.findById(order.getUserCouponId()).ifPresent(uc -> {
+            userCouponRepository.findById(Objects.requireNonNull(order.getUserCouponId())).ifPresent(uc -> {
                 uc.setUsed(false);
                 uc.setUsedAt(null);
             });
@@ -220,7 +221,7 @@ public class OrderService {
 
     @Transactional
     public void deliverOrder(Long orderId) {
-        Order order = orderRepository.findById(orderId)
+        Order order = orderRepository.findById(Objects.requireNonNull(orderId))
                 .orElseThrow(() -> new BusinessException("주문을 찾을 수 없습니다.", HttpStatus.NOT_FOUND));
         if (order.getStatus() != OrderStatus.PAID) {
             throw new BusinessException("결제 완료 상태의 주문만 배송 완료 처리할 수 있습니다.", HttpStatus.BAD_REQUEST);

@@ -27,14 +27,19 @@ public class User implements UserDetails {
     @GeneratedValue(strategy = GenerationType.IDENTITY) // 💡 자동 증가 설정
     private Long id;
 
-    @Column(nullable = false, unique = true, length = 50) // 💡 Null 불가, 유니크 제약조건 추가
+    @Column(nullable = false, unique = true, length = 50)
     private String username;
 
-    @Column(nullable = false)
+    @Column(nullable = true)
     private String password;
 
-    // 사용자 권한 (예: ROLE_USER, ROLE_ADMIN)
     private String role;
+
+    @Column(length = 20)
+    private String provider;
+
+    @Column(name = "provider_id")
+    private String providerId;
 
     // --- UserDetails 인터페이스 구현 시작 ---
 
@@ -81,6 +86,10 @@ public class User implements UserDetails {
     private String email;
 
     private int points;
+
+    public void updateOAuthInfo(String email) {
+        this.email = email;
+    }
 
     public void addPoints(int amount) {
         this.points += amount;
