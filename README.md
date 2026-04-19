@@ -4,9 +4,18 @@ Spring Boot와 React를 이용한 풀스택 쇼핑몰 구축 및 실무 환경 �
 
 ## 기술 스택
 
-- **Backend**: Java 17, Spring Boot 3.4.x, Spring Data JPA, MySQL
-- **Frontend**: React 19, Vite, CSS3
-- **결제**: 토스페이먼츠(Toss Payments) 샌드박스
+| 구분 | 기술 |
+|---|---|
+| **Backend** | Java 17, Spring Boot 3.4.x, Spring Data JPA, MySQL |
+| **Frontend** | React 19, Vite, CSS3 |
+| **결제** | 토스페이먼츠(Toss Payments) 샌드박스 |
+
+---
+
+## 시작 전 필수 설정
+
+- 프로젝트 클론 후 루트 디렉토리에 `uploads` 폴더를 직접 생성해야 이미지 업로드가 정상 작동합니다.
+- Docker MySQL 접속: `docker exec -it shop-mysql mysql --default-character-set=utf8mb4 -u root -p1234 shop_db`
 
 ---
 
@@ -14,31 +23,33 @@ Spring Boot와 React를 이용한 풀스택 쇼핑몰 구축 및 실무 환경 �
 
 ### [2026-04-19]
 
-* [Completed] 상품 썸네일 및 포토 리뷰를 위한 이미지 파일 업로드 연동
+- 상품 썸네일 및 포토 리뷰를 위한 이미지 파일 업로드 연동
+
+---
 
 ### [2026-04-18]
 
-* [Completed] 관리자(Admin) 상품 관리 API 및 UI 뼈대 구축
-* [Completed] 사용자 리뷰 시스템 구현 및 주문 상태 관리 고도화(DELIVERED) 완료
-* [Completed] 쿠폰/포인트 시스템 및 결제 할인 연동
-* [Completed] `OrderService` Null 타입 안전성 경고 해소
-* [Completed] OAuth2 소셜 로그인 및 JWT 보안 아키텍처 구축
+- 관리자(Admin) 상품 관리 API 및 UI 뼈대 구축
+- 사용자 리뷰 시스템 구현 및 주문 상태 관리 고도화(`DELIVERED`) 완료
+- 쿠폰/포인트 시스템 및 결제 할인 연동
+- `OrderService` Null 타입 안전성 경고 해소
+- OAuth2 소셜 로그인 및 JWT 보안 아키텍처 구축
 
-**`OrderService` — `@NonNull Long` 타입 불일치 경고 수정**
-- `userRepository.findById(user.getId())`, `userCouponRepository.findById(request.getCouponId())` 등 5개 호출부에서 JDT가 `Long` → `@NonNull Long` unchecked conversion 경고를 발생시키던 문제 수정.
-- `Objects.requireNonNull()` 래핑으로 컴파일러에 비-null 보장을 명시적으로 전달, 기존 `@SuppressWarnings("null")` 억제 패턴 대신 실질적 픽스 방식으로 통일.
+#### `OrderService` — `@NonNull Long` 타입 불일치 경고 수정
 
-### [2026-04-17] [Completed] 재고 차감 동시성 제어 — 비관적 락(Pessimistic Lock) 적용
-
-**동시성 문제 해결 (`ProductRepository`, `OrderService`)**
-- 여러 사용자가 동시에 동일 상품을 결제할 때 재고가 음수가 되거나 정합성이 깨지는 Race Condition을 차단.
-- `ProductRepository`에 `@Lock(LockModeType.PESSIMISTIC_WRITE)` JPQL 메서드(`findByIdWithLock`)를 추가하여 DB 수준의 `SELECT ... FOR UPDATE`를 보장.
-- `OrderService.createOrder`: 재고 차감 직전 락이 걸린 메서드로 상품을 재조회하여 동시 요청 간 재고 수량 충돌을 원천 차단.
-- `OrderService.cancelOrder`: 환불·취소 시 재고 복구 구간에도 동일한 비관적 락을 적용하여 취소와 신규 주문이 동시에 들어오는 시나리오를 안전하게 처리.
+- `userRepository.findById(user.getId())` 등 5개 호출부에서 `Long` → `@NonNull Long` unchecked conversion 경고를 발생시키던 문제 수정.
+- `Objects.requireNonNull()` 래핑으로 비-null 보장을 명시적으로 전달, `@SuppressWarnings("null")` 억제 대신 실질적 픽스 방식으로 통일.
 
 ---
 
 ### [2026-04-17]
+
+#### 재고 차감 동시성 제어 — 비관적 락(Pessimistic Lock) 적용
+
+- 여러 사용자가 동시에 동일 상품을 결제할 때 재고가 음수가 되거나 정합성이 깨지는 Race Condition을 차단.
+- `ProductRepository`에 `@Lock(LockModeType.PESSIMISTIC_WRITE)` JPQL 메서드(`findByIdWithLock`)를 추가하여 DB 수준의 `SELECT ... FOR UPDATE` 보장.
+- `OrderService.createOrder`: 재고 차감 직전 락이 걸린 메서드로 상품을 재조회하여 동시 요청 간 재고 수량 충돌을 원천 차단.
+- `OrderService.cancelOrder`: 환불·취소 시 재고 복구 구간에도 동일한 비관적 락을 적용하여 취소와 신규 주문이 동시에 들어오는 시나리오를 안전하게 처리.
 
 #### 백엔드 — 코드 품질 개선 (경고 전면 해소)
 
@@ -71,8 +82,6 @@ Spring Boot와 React를 이용한 풀스택 쇼핑몰 구축 및 실무 환경 �
 
 #### 백엔드/프론트엔드 — 전면 리팩토링 (관심사 분리 및 아키텍처 개선)
 
-**백엔드**
-
 **GlobalExceptionHandler 도입 (예외 처리 일원화)**
 - `exception/GlobalExceptionHandler.java` 신규 생성으로 모든 컨트롤러의 try-catch 중복 코드 제거.
 - `exception/BusinessException.java`를 도입해 비즈니스 규칙 위반(재고 부족, 권한 없음 등)을 HTTP 상태 코드와 함께 명시적으로 표현.
@@ -82,7 +91,8 @@ Spring Boot와 React를 이용한 풀스택 쇼핑몰 구축 및 실무 환경 �
 - `OrderRepository`에 `@Query` FETCH JOIN 메서드(`findByUserWithItems`, `findByIdWithItems`)를 추가해 주문 목록/상세 조회 시 OrderItem + Product를 단일 쿼리로 조회.
 
 **재고 이중 차감 버그 수정**
-- `OrderService.completePayment`에서 재고를 재차감하던 버그 수정. 재고는 `createOrder`에서 1회만 차감하며, `completePayment`는 주문 상태를 `PAID`로 변경하고 `paymentKey`를 저장하는 역할에만 집중.
+- `OrderService.completePayment`에서 재고를 재차감하던 버그 수정.
+- 재고는 `createOrder`에서 1회만 차감하며, `completePayment`는 주문 상태를 `PAID`로 변경하고 `paymentKey`를 저장하는 역할에만 집중.
 
 **PaymentController/PaymentService 책임 분리**
 - `PaymentController`의 결제 API 통신 로직을 `PaymentService`로 분리.
@@ -95,8 +105,6 @@ Spring Boot와 React를 이용한 풀스택 쇼핑몰 구축 및 실무 환경 �
 - `Order` 엔티티에서 Lombok으로 커버되는 `paymentKey` getter/setter 중복 선언 제거.
 - `AuthController` 생성자 주입 방식 `@RequiredArgsConstructor`로 통일.
 - `AuthService`의 중복 username 예외를 `BusinessException(409 CONFLICT)`으로 교체.
-
-**프론트엔드**
 
 **공통 API 클라이언트 (`src/api/apiClient.js`)**
 - 모든 컴포넌트에 흩어져 있던 `API_BASE_URL` 상수 및 `fetch` 호출을 단일 모듈로 통합.
@@ -115,90 +123,61 @@ Spring Boot와 React를 이용한 풀스택 쇼핑몰 구축 및 실무 환경 �
 - `AuthManager.jsx`: `useAuth` 훅 위임, 상태 변수 명 충돌(`username` 필드명) 해소.
 - `CartList.jsx` / `OrderList.jsx` / `ProductManager.jsx`: 각각 전용 훅(`useCart`, `useOrders`, `useProducts`)으로 API 로직 분리.
 
-#### 프론트엔드 — 결제 취소 UI 연동
-
-**상태별 배지(Badge) UI 추가**
-- 주문 목록 카드에 `ORDERED`(파랑), `PAID`(초록), `CANCELED`(빨강) 상태를 시각적으로 구분하는 컬러 배지를 표시.
-
-**결제 취소 버튼 및 모달**
-- 상태가 `PAID`인 주문에만 '결제 취소' 버튼을 노출.
-- 버튼 클릭 시 취소 사유 입력 모달이 열리며, 사유 입력 후 백엔드 `/api/payment/cancel/{orderId}`로 POST 요청.
-
-**즉시 상태 동기화**
-- 취소 API 성공 시 추가 네트워크 요청 없이 `orders` 목록 상태와 상세 모달의 `selectedOrder`를 모두 즉시 `CANCELED`로 갱신.
-- 취소 완료 후 상세 모달이 열린 채 CANCELED 배지로 전환되어 사용자에게 즉각적인 피드백 제공.
+**결제 취소 UI 연동**
+- 주문 목록 카드에 `ORDERED`(파랑), `PAID`(초록), `CANCELED`(빨강) 상태를 시각적으로 구분하는 컬러 배지 표시.
+- 상태가 `PAID`인 주문에만 '결제 취소' 버튼을 노출, 클릭 시 취소 사유 입력 모달이 열리며 `/api/payment/cancel/{orderId}`로 POST 요청.
+- 취소 API 성공 시 추가 네트워크 요청 없이 `orders` 목록 상태와 상세 모달의 `selectedOrder`를 즉시 `CANCELED`로 갱신.
 
 ---
 
-### [2026-03-10] 결제 취소 API 및 금액 위변조 방어 로직 구현
+### [2026-03-10]
 
-**결제 금액 위변조 검증 (보안 강화)**
-- 프론트엔드에서 전달된 결제 금액(`amount`)과 DB의 실제 주문 금액(`totalAmount`)을 결제 승인 직전에 교차 검증하여 악의적인 데이터 조작(해킹) 원천 차단.
+#### 결제 취소 API 및 금액 위변조 방어 로직 구현
 
-**결제 키 영속성 보장**
+- 프론트엔드에서 전달된 결제 금액(`amount`)과 DB의 실제 주문 금액(`totalAmount`)을 결제 승인 직전에 교차 검증하여 악의적인 데이터 조작 원천 차단.
 - `Order` 엔티티에 `paymentKey` 필드를 추가하여 추후 환불 및 결제 추적성 확보.
-
-**토스페이먼츠 Cancel API 연동**
 - `/api/payment/cancel/{orderId}` 엔드포인트 구축 및 사유(Reason)를 포함한 취소 통신 완료.
-
-**데이터 무결성 롤백 처리**
 - 환불 성공 시 `OrderService.cancelOrder`를 재활용하여 상품 재고(Stock) 복구 및 주문 상태(`CANCELED`) 롤백 보장.
 
 ---
 
-### [2026-03-07] 결제 시스템 및 재고 관리 로직 완비
+### [2026-03-07]
 
-**결제 최종 승인 API 구현**
+#### 결제 시스템 및 재고 관리 로직 완비
+
 - Toss Payments와의 서버 간 통신을 통해 결제 무결성 검증 완료.
-
-**비즈니스 로직 고도화**
 - `OrderStatus` Enum에 `PAID` 상태 추가 및 결제 완료 시 상태 변경 로직 구현.
 - 결제 성공 시 상품 테이블(`Product`)의 물리적 재고(`stockQuantity`) 자동 차감 로직 연동.
-
-**트러블슈팅**
 - React StrictMode로 인한 API 중복 호출 이슈를 `main.jsx` 수정으로 해결.
 - JPA 순환 참조 에러를 `@JsonIgnore`로 해결하여 데이터 전송 최적화.
 
 ---
 
-### [2026-03-01] 결제 시스템 프론트엔드 연동 완성
+### [2026-03-01]
 
-**토스페이먼츠 일반 결제창 구현**
-- `CheckoutTest.jsx` 컴포넌트를 통한 결제 프로세스 독립적 테스트 완료.
+#### 결제 시스템 프론트엔드 연동 완성
 
-**성능 및 UX 개선**
+- `CheckoutTest.jsx` 컴포넌트를 통한 토스페이먼츠 일반 결제창 구현 및 독립적 테스트 완료.
 - `URLSearchParams`를 활용한 결제 성공 데이터(paymentKey) 추출 로직 구현.
 - `window.history.replaceState`를 사용하여 주소창 URL 정리 기능 추가.
 
 ---
 
-### [2026-02-27] JPA Auditing 적용 및 DB 안정화
+### [2026-02-27]
 
-**JPA Auditing 시스템 구축**
-- 모든 엔티티의 생성 및 수정 시간을 자동으로 관리하는 기반 마련.
+#### JPA Auditing 적용 및 DB 안정화
 
-**Docker MySQL 한글 지원 최적화**
-- 이모지 및 다국어 지원을 위해 `utf8mb4` 캐릭터셋으로 서버 환경 재구축.
-
-**Git 저장소 브랜치 표준화**
+- 모든 엔티티의 생성 및 수정 시간을 자동으로 관리하는 JPA Auditing 기반 마련.
+- 이모지 및 다국어 지원을 위해 `utf8mb4` 캐릭터셋으로 Docker MySQL 서버 환경 재구축.
 - 프로젝트 기본 브랜치를 `main`으로 전환하고 원격 저장소와 동기화 완료.
 
 ---
 
-### [2026-02-25] 상품 관리 및 환경 설정 최적화
+### [2026-02-25]
 
-**Soft Delete 도입**
-- 데이터 무결성을 위해 `isDeleted` 플래그를 사용하여 주문 내역이 있는 상품도 안전하게 관리.
+#### 상품 관리 및 환경 설정 최적화
 
-**이미지 자동 정리**
+- 데이터 무결성을 위해 `isDeleted` 플래그를 사용하는 Soft Delete 도입 — 주문 내역이 있는 상품도 안전하게 관리.
 - 상품 삭제 또는 이미지 변경 시 서버 내 물리적 파일(`uploads/`)을 자동으로 삭제.
-
-**프로젝트 구조 및 보안 강화**
 - 통합 `.gitignore`로 설정 파일 및 바이너리 파일 유출 방지.
 - `application.properties`를 추적 제외하여 민감한 DB 및 JWT 정보 보호.
-
-> **필수 설정 사항**
-> 프로젝트 클론 후 루트 디렉토리에 `uploads` 폴더를 직접 생성해야 이미지 업로드 기능이 정상 작동합니다.
-
-> **Docker MySQL 접속 팁**
-> `docker exec -it shop-mysql mysql --default-character-set=utf8mb4 -u root -p1234 shop_db`
