@@ -54,5 +54,17 @@ export function useProducts() {
         await apiClient.delete(`/admin/products/${productId}`);
     }, []);
 
-    return { products, loading, error, fetchProducts, createProduct, updateProduct, deleteProduct };
+    const searchProducts = useCallback(async (params = {}) => {
+        const qs = new URLSearchParams();
+        if (params.keyword) qs.set('keyword', params.keyword);
+        if (params.category) qs.set('category', params.category);
+        if (params.priceMin != null && params.priceMin !== '') qs.set('priceMin', params.priceMin);
+        if (params.priceMax != null && params.priceMax !== '') qs.set('priceMax', params.priceMax);
+        if (params.sort) qs.set('sort', params.sort);
+        qs.set('page', params.page ?? 0);
+        qs.set('size', params.size ?? 9);
+        return apiClient.get(`/products/search?${qs.toString()}`);
+    }, []);
+
+    return { products, loading, error, fetchProducts, createProduct, updateProduct, deleteProduct, searchProducts };
 }

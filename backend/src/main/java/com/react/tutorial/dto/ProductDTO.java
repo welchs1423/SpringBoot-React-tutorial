@@ -20,4 +20,8 @@ public class ProductDTO {
 
     @JsonProperty("imageUrl")
     private String imageUrl;
+
+    private String category;
+
+    private double averageRating;
 }

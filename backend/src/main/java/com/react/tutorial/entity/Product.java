@@ -38,6 +38,9 @@ public class Product extends BaseEntity{
     @Column(length = 500)
     private String imageUrl;
 
+    @Column(length = 100)
+    private String category;
+
     @Builder.Default
     @OneToMany(mappedBy = "product", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Review> reviews = new ArrayList<>();

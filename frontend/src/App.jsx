@@ -1,42 +1,62 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import CartList from './CartList';
 import OrderList from './OrderList';
 import AuthManager from './AuthManager';
 import CheckoutTest from './CheckoutTest';
 import AdminDashboard from './AdminDashboard';
+import ProductFilter from './ProductFilter';
 import { useAuth } from './hooks/useAuth';
 import { useProducts } from './hooks/useProducts';
 import { apiClient } from './api/apiClient';
 import './App.css';
 
+const INITIAL_FILTERS = { keyword: '', category: '', priceMin: '', priceMax: '', sort: 'latest', page: 0 };
+const PAGE_SIZE = 9;
+
 function App() {
     const { token, role, username, isLoggedIn, login, register, logout } = useAuth();
-    const { products, loading, error, fetchProducts } = useProducts();
+    const { searchProducts } = useProducts();
     const [view, setView] = useState('main');
-    const [searchTerm, setSearchTerm] = useState('');
     const [cartMessage, setCartMessage] = useState(null);
     const [cartUpdateFlag, setCartUpdateFlag] = useState(0);
     const [reviewPanelId, setReviewPanelId] = useState(null);
     const [reviewsCache, setReviewsCache] = useState({});
 
-    useEffect(() => {
-        fetchProducts();
-    }, [fetchProducts]);
+    const [filters, setFilters] = useState(INITIAL_FILTERS);
+    const [products, setProducts] = useState([]);
+    const [pageInfo, setPageInfo] = useState({ totalPages: 0, totalElements: 0 });
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState(null);
+    const [refreshTrigger, setRefreshTrigger] = useState(0);
 
-    // 토스페이먼츠 결제 완료 리다이렉트 처리
+    const debounceTimer = useRef(null);
+
+    useEffect(() => {
+        clearTimeout(debounceTimer.current);
+        debounceTimer.current = setTimeout(async () => {
+            setLoading(true);
+            setError(null);
+            try {
+                const result = await searchProducts({ ...filters, size: PAGE_SIZE });
+                setProducts(result?.content ?? []);
+                setPageInfo({ totalPages: result?.totalPages ?? 0, totalElements: result?.totalElements ?? 0 });
+            } catch (err) {
+                setError(err.message ?? '상품 목록 로드 중 오류 발생');
+            } finally {
+                setLoading(false);
+            }
+        }, 300);
+        return () => clearTimeout(debounceTimer.current);
+    }, [filters, refreshTrigger, searchProducts]);
+
     useEffect(() => {
         const params = new URLSearchParams(window.location.search);
         const paymentKey = params.get('paymentKey');
         const orderId = params.get('orderId');
         const amount = params.get('amount');
-
         if (!paymentKey || !orderId || !amount) return;
 
-        apiClient.post('/payment/confirm', {
-            paymentKey,
-            orderId,
-            amount: Number(amount),
-        })
+        apiClient.post('/payment/confirm', { paymentKey, orderId, amount: Number(amount) })
             .then(() => {
                 alert('결제가 최종 승인되었습니다.');
                 setCartUpdateFlag(f => f + 1);
@@ -73,10 +93,7 @@ function App() {
 
     const handleToggleReviews = useCallback(async (productId) => {
         const pid = String(productId);
-        if (reviewPanelId === pid) {
-            setReviewPanelId(null);
-            return;
-        }
+        if (reviewPanelId === pid) { setReviewPanelId(null); return; }
         setReviewPanelId(pid);
         if (!reviewsCache[pid]) {
             try {
@@ -88,10 +105,17 @@ function App() {
         }
     }, [reviewPanelId, reviewsCache]);
 
-    const filteredProducts = useMemo(
-        () => products.filter(p => p.name.toLowerCase().includes(searchTerm.toLowerCase())),
-        [products, searchTerm]
-    );
+    const handleFilterChange = useCallback((newFilters) => {
+        setFilters({ ...newFilters, page: 0 });
+    }, []);
+
+    const handleReset = useCallback(() => {
+        setFilters(INITIAL_FILTERS);
+    }, []);
+
+    const handlePageChange = useCallback((newPage) => {
+        setFilters(prev => ({ ...prev, page: newPage }));
+    }, []);
 
     const navBtn = (target, label, isAdmin = false) => (
         <button onClick={() => setView(target)} style={navBtnStyle(view === target, isAdmin)}>
@@ -100,7 +124,7 @@ function App() {
     );
 
     return (
-        <div className="container" style={{ maxWidth: '900px', margin: '0 auto', padding: '20px' }}>
+        <div className="container" style={{ maxWidth: '1100px', margin: '0 auto', padding: '20px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', borderBottom: '2px solid #eee', paddingBottom: '10px' }}>
                 <h1 style={{ margin: 0 }}>React-Spring Mall</h1>
                 <nav style={{ display: 'flex', gap: '10px' }}>
@@ -111,7 +135,6 @@ function App() {
                 </nav>
             </div>
 
-            {/* App이 useAuth의 단일 인스턴스를 소유하고 AuthManager에 props로 전달 */}
             <AuthManager
                 isLoggedIn={isLoggedIn}
                 role={role}
@@ -122,7 +145,7 @@ function App() {
             />
 
             {view === 'admin' && (
-                <AdminDashboard role={role} onProductChanged={fetchProducts} />
+                <AdminDashboard role={role} onProductChanged={() => setRefreshTrigger(t => t + 1)} />
             )}
 
             {view === 'orders' && (
@@ -140,82 +163,115 @@ function App() {
                         cartUpdateFlag={cartUpdateFlag}
                     />
 
-                    <div style={{ marginBottom: '20px', padding: '15px', backgroundColor: '#f8f9fa', borderRadius: '10px' }}>
-                        <input
-                            type="text"
-                            placeholder="상품 이름 검색..."
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                            style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid #ddd', boxSizing: 'border-box' }}
-                        />
-                    </div>
+                    <ProductFilter filters={filters} onChange={handleFilterChange} onReset={handleReset} />
 
-                    <h3>전체 상품 목록</h3>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                        <h3 style={{ margin: 0 }}>전체 상품 목록</h3>
+                        {!loading && <span style={{ color: '#666', fontSize: '14px' }}>총 {pageInfo.totalElements}개</span>}
+                    </div>
 
                     {loading && <div style={{ textAlign: 'center', padding: '20px' }}>상품을 불러오는 중입니다...</div>}
                     {error && <div style={{ color: 'red', textAlign: 'center', padding: '20px' }}>{error}</div>}
 
-                    {!loading && !error && (
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '20px' }}>
-                            {filteredProducts.map(product => (
-                                <div key={`prod-${product.id}`} className="product-card" style={{ border: '1px solid #ddd', padding: '20px', borderRadius: '12px', background: '#fff', color: '#333' }}>
-                                    {product.imageUrl ? (
-                                        <img
-                                            src={product.imageUrl}
-                                            alt={product.name}
-                                            style={{ width: '100%', height: '200px', objectFit: 'cover', borderRadius: '8px', marginBottom: '10px' }}
-                                        />
-                                    ) : (
-                                        <div style={{ width: '100%', height: '200px', backgroundColor: '#eee', borderRadius: '8px', marginBottom: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#999' }}>
-                                            이미지 없음
-                                        </div>
-                                    )}
-                                    <h4>{product.name}</h4>
-                                    <p>{product.price.toLocaleString()}원</p>
-                                    <p style={{ color: product.stockQuantity > 0 ? 'green' : 'red' }}>
-                                        {product.stockQuantity > 0 ? `재고: ${product.stockQuantity}` : '품절'}
-                                    </p>
-                                    <button
-                                        disabled={product.stockQuantity <= 0}
-                                        onClick={() => handleAddToCart(product.id)}
-                                        style={{ width: '100%', padding: '10px', backgroundColor: product.stockQuantity > 0 ? '#007bff' : '#ccc', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer' }}
-                                    >
-                                        {product.stockQuantity > 0 ? '담기' : '품절된 상품'}
-                                    </button>
-                                    <button
-                                        onClick={() => handleToggleReviews(product.id)}
-                                        style={{ width: '100%', marginTop: '8px', padding: '8px', backgroundColor: '#f8f9fa', color: '#495057', border: '1px solid #dee2e6', borderRadius: '6px', cursor: 'pointer', fontSize: '13px' }}
-                                    >
-                                        {reviewPanelId === String(product.id) ? '리뷰 닫기' : '리뷰 보기'}
-                                    </button>
-                                    {reviewPanelId === String(product.id) && (() => {
-                                        const revs = reviewsCache[String(product.id)] ?? [];
-                                        const avg = revs.length > 0
-                                            ? (revs.reduce((s, r) => s + r.rating, 0) / revs.length).toFixed(1)
-                                            : null;
-                                        return (
-                                            <div style={{ marginTop: '10px', padding: '10px', background: '#f9f9f9', borderRadius: '8px', fontSize: '13px' }}>
-                                                <div style={{ marginBottom: '8px', fontWeight: 'bold', color: '#ffc107' }}>
-                                                    {avg ? `평균 별점: ${'★'.repeat(Math.round(avg))}${'☆'.repeat(5 - Math.round(avg))} (${avg})` : '리뷰 없음'}
-                                                    {revs.length > 0 && <span style={{ color: '#666', fontWeight: 'normal', marginLeft: '6px' }}>({revs.length}개)</span>}
-                                                </div>
-                                                <div style={{ display: 'grid', gap: '6px', maxHeight: '200px', overflowY: 'auto' }}>
-                                                    {revs.map((rev, i) => (
-                                                        <div key={rev.id ?? i} style={{ background: '#fff', border: '1px solid #eee', borderRadius: '6px', padding: '8px' }}>
-                                                            <div style={{ color: '#ffc107', fontSize: '12px' }}>{'★'.repeat(rev.rating)}{'☆'.repeat(5 - rev.rating)}</div>
-                                                            <div><strong style={{ fontSize: '12px' }}>{rev.username}</strong><span style={{ marginLeft: '6px', color: '#333' }}>{rev.content}</span></div>
-                                                            {rev.imageUrl && (
-                                                                <img src={rev.imageUrl} alt="리뷰 이미지" style={{ marginTop: '6px', maxWidth: '100%', maxHeight: '80px', objectFit: 'cover', borderRadius: '4px' }} />
-                                                            )}
-                                                        </div>
-                                                    ))}
-                                                </div>
+                    {!loading && !error && products.length === 0 && (
+                        <div style={{ textAlign: 'center', padding: '40px', color: '#999' }}>검색 결과가 없습니다.</div>
+                    )}
+
+                    {!loading && !error && products.length > 0 && (
+                        <>
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '20px', marginBottom: '24px' }}>
+                                {products.map(product => (
+                                    <div key={`prod-${product.id}`} className="product-card" style={{ border: '1px solid #ddd', padding: '20px', borderRadius: '12px', background: '#fff', color: '#333' }}>
+                                        {product.imageUrl ? (
+                                            <img
+                                                src={product.imageUrl}
+                                                alt={product.name}
+                                                style={{ width: '100%', height: '200px', objectFit: 'cover', borderRadius: '8px', marginBottom: '10px' }}
+                                            />
+                                        ) : (
+                                            <div style={{ width: '100%', height: '200px', backgroundColor: '#eee', borderRadius: '8px', marginBottom: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#999' }}>
+                                                이미지 없음
                                             </div>
-                                        );
-                                    })()}
+                                        )}
+                                        {product.category && (
+                                            <span style={{ display: 'inline-block', padding: '2px 8px', background: '#e3f2fd', color: '#1565c0', borderRadius: '20px', fontSize: '11px', marginBottom: '6px' }}>
+                                                {product.category}
+                                            </span>
+                                        )}
+                                        <h4 style={{ margin: '0 0 6px 0' }}>{product.name}</h4>
+                                        <p style={{ margin: '0 0 4px 0' }}>{product.price.toLocaleString()}원</p>
+                                        {product.averageRating > 0 && (
+                                            <p style={{ margin: '0 0 4px 0', color: '#f57c00', fontSize: '13px' }}>
+                                                {'★'.repeat(Math.round(product.averageRating))}{'☆'.repeat(5 - Math.round(product.averageRating))} ({product.averageRating.toFixed(1)})
+                                            </p>
+                                        )}
+                                        <p style={{ color: product.stockQuantity > 0 ? 'green' : 'red', margin: '0 0 10px 0' }}>
+                                            {product.stockQuantity > 0 ? `재고: ${product.stockQuantity}` : '품절'}
+                                        </p>
+                                        <button
+                                            disabled={product.stockQuantity <= 0}
+                                            onClick={() => handleAddToCart(product.id)}
+                                            style={{ width: '100%', padding: '10px', backgroundColor: product.stockQuantity > 0 ? '#007bff' : '#ccc', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer' }}
+                                        >
+                                            {product.stockQuantity > 0 ? '담기' : '품절된 상품'}
+                                        </button>
+                                        <button
+                                            onClick={() => handleToggleReviews(product.id)}
+                                            style={{ width: '100%', marginTop: '8px', padding: '8px', backgroundColor: '#f8f9fa', color: '#495057', border: '1px solid #dee2e6', borderRadius: '6px', cursor: 'pointer', fontSize: '13px' }}
+                                        >
+                                            {reviewPanelId === String(product.id) ? '리뷰 닫기' : '리뷰 보기'}
+                                        </button>
+                                        {reviewPanelId === String(product.id) && (() => {
+                                            const revs = reviewsCache[String(product.id)] ?? [];
+                                            const avg = revs.length > 0
+                                                ? (revs.reduce((s, r) => s + r.rating, 0) / revs.length).toFixed(1)
+                                                : null;
+                                            return (
+                                                <div style={{ marginTop: '10px', padding: '10px', background: '#f9f9f9', borderRadius: '8px', fontSize: '13px' }}>
+                                                    <div style={{ marginBottom: '8px', fontWeight: 'bold', color: '#ffc107' }}>
+                                                        {avg ? `평균 별점: ${'★'.repeat(Math.round(avg))}${'☆'.repeat(5 - Math.round(avg))} (${avg})` : '리뷰 없음'}
+                                                        {revs.length > 0 && <span style={{ color: '#666', fontWeight: 'normal', marginLeft: '6px' }}>({revs.length}개)</span>}
+                                                    </div>
+                                                    <div style={{ display: 'grid', gap: '6px', maxHeight: '200px', overflowY: 'auto' }}>
+                                                        {revs.map((rev, i) => (
+                                                            <div key={rev.id ?? i} style={{ background: '#fff', border: '1px solid #eee', borderRadius: '6px', padding: '8px' }}>
+                                                                <div style={{ color: '#ffc107', fontSize: '12px' }}>{'★'.repeat(rev.rating)}{'☆'.repeat(5 - rev.rating)}</div>
+                                                                <div><strong style={{ fontSize: '12px' }}>{rev.username}</strong><span style={{ marginLeft: '6px', color: '#333' }}>{rev.content}</span></div>
+                                                                {rev.imageUrl && (
+                                                                    <img src={rev.imageUrl} alt="리뷰 이미지" style={{ marginTop: '6px', maxWidth: '100%', maxHeight: '80px', objectFit: 'cover', borderRadius: '4px' }} />
+                                                                )}
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            );
+                                        })()}
+                                    </div>
+                                ))}
+                            </div>
+
+                            {pageInfo.totalPages > 1 && (
+                                <div style={{ display: 'flex', justifyContent: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                                    {Array.from({ length: pageInfo.totalPages }, (_, i) => (
+                                        <button
+                                            key={i}
+                                            onClick={() => handlePageChange(i)}
+                                            style={{
+                                                padding: '6px 12px',
+                                                border: '1px solid #dee2e6',
+                                                borderRadius: '6px',
+                                                cursor: 'pointer',
+                                                background: filters.page === i ? '#007bff' : '#fff',
+                                                color: filters.page === i ? '#fff' : '#495057',
+                                                fontWeight: filters.page === i ? 'bold' : 'normal',
+                                            }}
+                                        >
+                                            {i + 1}
+                                        </button>
+                                    ))}
                                 </div>
-                            ))}
-                        </div>
+                            )}
+                        </>
                     )}
                 </>
             )}

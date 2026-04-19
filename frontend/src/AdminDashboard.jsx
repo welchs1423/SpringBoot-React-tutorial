@@ -3,7 +3,8 @@ import { useProducts } from './hooks/useProducts';
 import { useOrders } from './hooks/useOrders';
 import { apiClient } from './api/apiClient';
 
-const EMPTY_FORM = { name: '', price: 0, stockQuantity: 0, description: '', imageUrl: '' };
+const CATEGORIES = ['', '전자제품', '의류', '식품', '스포츠/레저', '뷰티', '도서', '가구/인테리어', '기타'];
+const EMPTY_FORM = { name: '', price: 0, stockQuantity: 0, description: '', imageUrl: '', category: '' };
 
 const ORDER_STATUS_LABEL = {
     ORDERED:   '주문 완료',
@@ -130,6 +131,7 @@ const AdminDashboard = ({ role, onProductChanged }) => {
             stockQuantity: product.stockQuantity,
             description: product.description ?? '',
             imageUrl: product.imageUrl ?? '',
+            category: product.category ?? '',
         });
         setEditFile(null);
         setEditMsg(null);
@@ -238,6 +240,12 @@ const AdminDashboard = ({ role, onProductChanged }) => {
                             <input type="number" name="stockQuantity" value={createForm.stockQuantity} onChange={handleCreateChange} style={inputStyle} min="0" required />
                         </div>
                         <div>
+                            <label style={labelStyle}>카테고리</label>
+                            <select name="category" value={createForm.category} onChange={handleCreateChange} style={inputStyle}>
+                                {CATEGORIES.map((c) => <option key={c} value={c}>{c || '선택 없음'}</option>)}
+                            </select>
+                        </div>
+                        <div>
                             <label style={labelStyle}>상품 이미지</label>
                             <input
                                 type="file"
@@ -294,6 +302,12 @@ const AdminDashboard = ({ role, onProductChanged }) => {
                                             <div>
                                                 <label style={labelStyle}>재고 수량</label>
                                                 <input type="number" name="stockQuantity" value={editForm.stockQuantity} onChange={handleEditChange} style={inputStyle} min="0" required />
+                                            </div>
+                                            <div>
+                                                <label style={labelStyle}>카테고리</label>
+                                                <select name="category" value={editForm.category} onChange={handleEditChange} style={inputStyle}>
+                                                    {CATEGORIES.map((c) => <option key={c} value={c}>{c || '선택 없음'}</option>)}
+                                                </select>
                                             </div>
                                             <div>
                                                 <label style={labelStyle}>새 이미지 (변경 시만 선택)</label>

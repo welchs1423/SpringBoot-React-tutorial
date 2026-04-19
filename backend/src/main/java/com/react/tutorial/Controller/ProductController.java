@@ -3,6 +3,7 @@ package com.react.tutorial.Controller;
 import com.react.tutorial.dto.ProductDTO;
 import com.react.tutorial.service.ProductService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -25,6 +26,18 @@ public class ProductController {
     @GetMapping
     public ResponseEntity<List<ProductDTO>> getAllProducts() {
         return ResponseEntity.ok(productService.findAll());
+    }
+
+    @GetMapping("/search")
+    public ResponseEntity<Page<ProductDTO>> searchProducts(
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) String category,
+            @RequestParam(required = false) Integer priceMin,
+            @RequestParam(required = false) Integer priceMax,
+            @RequestParam(defaultValue = "latest") String sort,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "9") int size) {
+        return ResponseEntity.ok(productService.search(keyword, category, priceMin, priceMax, sort, page, size));
     }
 
     @GetMapping("/{id}")
