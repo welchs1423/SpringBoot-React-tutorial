@@ -2,9 +2,11 @@ package com.react.tutorial.service;
 
 import com.react.tutorial.dto.*;
 import com.react.tutorial.entity.*;
+import com.react.tutorial.event.OrderCompletedEvent;
 import com.react.tutorial.exception.BusinessException;
 import com.react.tutorial.repository.*;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -25,6 +27,7 @@ public class OrderService {
     private final ProductRepository productRepository;
     private final UserRepository userRepository;
     private final UserCouponRepository userCouponRepository;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Transactional
     public Order createOrder(User user, OrderRequest request) {
@@ -116,6 +119,7 @@ public class OrderService {
 
         Order saved = orderRepository.save(order);
         cartItemRepository.deleteAll(cartItems);
+        eventPublisher.publishEvent(new OrderCompletedEvent(saved));
         return saved;
     }
 

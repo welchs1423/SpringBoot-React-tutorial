@@ -8,6 +8,7 @@ import ProductFilter from './ProductFilter';
 import { useAuth } from './hooks/useAuth';
 import { useProducts } from './hooks/useProducts';
 import { useWishlist } from './hooks/useWishlist';
+import { useNotifications } from './hooks/useNotifications';
 import { apiClient } from './api/apiClient';
 import './App.css';
 
@@ -27,6 +28,7 @@ function App() {
     const { token, role, username, isLoggedIn, login, register, logout } = useAuth();
     const { searchProducts } = useProducts();
     const { wishlistedIds, wishlistItems, fetchWishlist, toggleWishlist } = useWishlist(isLoggedIn);
+    const { notifications, unreadCount, open: notifOpen, setOpen: setNotifOpen, handleToggle: handleNotifToggle, markAllAsRead } = useNotifications(isLoggedIn);
     const [view, setView] = useState('main');
     const [cartMessage, setCartMessage] = useState(null);
     const [cartUpdateFlag, setCartUpdateFlag] = useState(0);
@@ -176,12 +178,51 @@ function App() {
         <div className="container" style={{ maxWidth: '1100px', margin: '0 auto', padding: '20px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', borderBottom: '2px solid #eee', paddingBottom: '10px' }}>
                 <h1 style={{ margin: 0 }}>React-Spring Mall</h1>
-                <nav style={{ display: 'flex', gap: '10px' }}>
+                <nav style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
                     {navBtn('main', '홈 (쇼핑)')}
                     {isLoggedIn && navBtn('orders', '내 주문/리뷰')}
                     {isLoggedIn && navBtn('wishlist', `찜 목록${wishlistItems.length > 0 ? ` (${wishlistItems.length})` : ''}`)}
                     {isLoggedIn && navBtn('admin', '상품 관리', true)}
                     {navBtn('checkout', '결제 테스트')}
+                    {isLoggedIn && (
+                        <div style={{ position: 'relative' }}>
+                            <button
+                                onClick={handleNotifToggle}
+                                style={{ position: 'relative', background: 'none', border: '1px solid #dee2e6', borderRadius: '20px', padding: '8px 14px', cursor: 'pointer', fontSize: '18px', lineHeight: 1 }}
+                                title="알림"
+                            >
+                                🔔
+                                {unreadCount > 0 && (
+                                    <span style={{ position: 'absolute', top: '2px', right: '4px', background: '#dc3545', color: '#fff', borderRadius: '50%', fontSize: '10px', fontWeight: 'bold', minWidth: '16px', height: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 3px' }}>
+                                        {unreadCount > 99 ? '99+' : unreadCount}
+                                    </span>
+                                )}
+                            </button>
+                            {notifOpen && (
+                                <div style={{ position: 'absolute', right: 0, top: '44px', width: '320px', background: '#fff', border: '1px solid #dee2e6', borderRadius: '10px', boxShadow: '0 4px 16px rgba(0,0,0,0.12)', zIndex: 1000 }}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 16px', borderBottom: '1px solid #eee' }}>
+                                        <strong style={{ fontSize: '14px' }}>알림</strong>
+                                        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                                            {unreadCount > 0 && (
+                                                <button onClick={markAllAsRead} style={{ fontSize: '11px', color: '#007bff', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>모두 읽음</button>
+                                            )}
+                                            <button onClick={() => setNotifOpen(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '16px', color: '#999', padding: 0 }}>✕</button>
+                                        </div>
+                                    </div>
+                                    <div style={{ maxHeight: '320px', overflowY: 'auto' }}>
+                                        {notifications.length === 0 ? (
+                                            <p style={{ textAlign: 'center', color: '#999', padding: '24px', fontSize: '13px' }}>알림이 없습니다.</p>
+                                        ) : notifications.map(n => (
+                                            <div key={n.id} style={{ padding: '12px 16px', borderBottom: '1px solid #f5f5f5', background: n.read ? '#fff' : '#f0f7ff', fontSize: '13px' }}>
+                                                <p style={{ margin: 0, color: '#333' }}>{n.message}</p>
+                                                <p style={{ margin: '4px 0 0 0', color: '#999', fontSize: '11px' }}>{n.createdAt ? new Date(n.createdAt).toLocaleString('ko-KR') : ''}</p>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    )}
                 </nav>
             </div>
 
