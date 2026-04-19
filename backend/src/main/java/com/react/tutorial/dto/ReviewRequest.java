@@ -8,4 +8,5 @@ public class ReviewRequest {
     private Long productId;
     private String content;
     private int rating;
+    private String imageUrl;
 }

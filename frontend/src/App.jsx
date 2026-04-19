@@ -204,6 +204,9 @@ function App() {
                                                         <div key={rev.id ?? i} style={{ background: '#fff', border: '1px solid #eee', borderRadius: '6px', padding: '8px' }}>
                                                             <div style={{ color: '#ffc107', fontSize: '12px' }}>{'★'.repeat(rev.rating)}{'☆'.repeat(5 - rev.rating)}</div>
                                                             <div><strong style={{ fontSize: '12px' }}>{rev.username}</strong><span style={{ marginLeft: '6px', color: '#333' }}>{rev.content}</span></div>
+                                                            {rev.imageUrl && (
+                                                                <img src={rev.imageUrl} alt="리뷰 이미지" style={{ marginTop: '6px', maxWidth: '100%', maxHeight: '80px', objectFit: 'cover', borderRadius: '4px' }} />
+                                                            )}
                                                         </div>
                                                     ))}
                                                 </div>

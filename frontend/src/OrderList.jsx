@@ -19,8 +19,11 @@ const OrderList = ({ token, updateFlag, currentUserName }) => {
     const [reviewsMap, setReviewsMap] = useState({});
     const [reviewText, setReviewText] = useState('');
     const [reviewRating, setReviewRating] = useState(5);
+    const [reviewFile, setReviewFile] = useState(null);
     const [editingReviewId, setEditingReviewId] = useState(null);
     const [editReviewText, setEditReviewText] = useState('');
+    const [editReviewFile, setEditReviewFile] = useState(null);
+    const [editReviewRating, setEditReviewRating] = useState(5);
     const [cancelModalOpen, setCancelModalOpen] = useState(false);
     const [targetCancelOrderId, setTargetCancelOrderId] = useState(null);
     const [cancelReason, setCancelReason] = useState('');
@@ -51,17 +54,21 @@ const OrderList = ({ token, updateFlag, currentUserName }) => {
 
     const handleReviewSubmit = async (pId) => {
         if (!reviewText.trim()) return;
-        await submitReview(pId, reviewText, reviewRating);
+        await submitReview(pId, reviewText, reviewRating, reviewFile);
         setReviewText('');
         setReviewRating(5);
+        setReviewFile(null);
+        const fi = document.getElementById(`reviewFile-${pId}`);
+        if (fi) fi.value = '';
         const reviews = await loadReviews(pId);
         setReviewsMap(prev => ({ ...prev, [pId]: reviews ?? [] }));
     };
 
-    const handleReviewUpdate = async (reviewId, pId) => {
+    const handleReviewUpdate = async (reviewId, pId, existingImageUrl) => {
         if (!editReviewText.trim()) return;
-        await updateReview(reviewId, editReviewText, reviewRating);
+        await updateReview(reviewId, editReviewText, editReviewRating, editReviewFile, existingImageUrl);
         setEditingReviewId(null);
+        setEditReviewFile(null);
         const reviews = await loadReviews(pId);
         setReviewsMap(prev => ({ ...prev, [pId]: reviews ?? [] }));
     };
@@ -143,32 +150,60 @@ const OrderList = ({ token, updateFlag, currentUserName }) => {
                                                     />
                                                     <button onClick={() => handleReviewSubmit(pId)} style={submitBtnStyle}>등록</button>
                                                 </div>
+                                                <input
+                                                    id={`reviewFile-${pId}`}
+                                                    type="file"
+                                                    accept="image/*"
+                                                    onChange={e => setReviewFile(e.target.files[0] ?? null)}
+                                                    style={{ fontSize: '12px', marginBottom: '8px', width: '100%' }}
+                                                />
                                                 <div style={reviewListStyle}>
                                                     {reviewsMap[pId]?.map((rev, index) => {
                                                         const isEditing = editingReviewId === rev.id;
                                                         return (
                                                             <div key={rev.id ? `rev-${rev.id}` : `rev-idx-${pId}-${index}`} style={reviewItemStyle}>
                                                                 {isEditing ? (
-                                                                    <div style={{ display: 'flex', gap: '5px', width: '100%' }}>
+                                                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '5px', width: '100%' }}>
+                                                                        <StarRating rating={editReviewRating} setRating={setEditReviewRating} />
+                                                                        <div style={{ display: 'flex', gap: '5px' }}>
+                                                                            <input
+                                                                                value={editReviewText}
+                                                                                onChange={e => setEditReviewText(e.target.value)}
+                                                                                style={{ ...inputStyle, fontSize: '12px' }}
+                                                                            />
+                                                                            <button onClick={() => handleReviewUpdate(rev.id, pId, rev.imageUrl)} style={submitBtnStyle}>완료</button>
+                                                                            <button onClick={() => { setEditingReviewId(null); setEditReviewFile(null); }} style={{ ...delBtnStyle, background: '#666' }}>취소</button>
+                                                                        </div>
                                                                         <input
-                                                                            value={editReviewText}
-                                                                            onChange={e => setEditReviewText(e.target.value)}
-                                                                            style={{ ...inputStyle, fontSize: '12px' }}
+                                                                            type="file"
+                                                                            accept="image/*"
+                                                                            onChange={e => setEditReviewFile(e.target.files[0] ?? null)}
+                                                                            style={{ fontSize: '12px' }}
                                                                         />
-                                                                        <button onClick={() => handleReviewUpdate(rev.id, pId)} style={submitBtnStyle}>완료</button>
-                                                                        <button onClick={() => setEditingReviewId(null)} style={{ ...delBtnStyle, background: '#666' }}>취소</button>
+                                                                        {rev.imageUrl && !editReviewFile && (
+                                                                            <img src={rev.imageUrl} alt="현재 이미지" style={{ width: '80px', height: '60px', objectFit: 'cover', borderRadius: '4px' }} />
+                                                                        )}
                                                                     </div>
                                                                 ) : (
-                                                                    <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
+                                                                    <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'flex-start' }}>
                                                                         <div>
                                                                             <div style={{ color: '#ffc107', fontSize: '14px', marginBottom: '2px' }}>
                                                                                 {renderStars(rev.rating)}
                                                                             </div>
                                                                             <span><strong>{rev.username}</strong>: {rev.content}</span>
+                                                                            {rev.imageUrl && (
+                                                                                <div style={{ marginTop: '6px' }}>
+                                                                                    <img
+                                                                                        src={rev.imageUrl}
+                                                                                        alt="리뷰 이미지"
+                                                                                        style={{ maxWidth: '120px', maxHeight: '100px', objectFit: 'cover', borderRadius: '6px', border: '1px solid #eee' }}
+                                                                                    />
+                                                                                </div>
+                                                                            )}
                                                                         </div>
                                                                         {rev.username === currentUserName && (
-                                                                            <div style={{ display: 'flex', gap: '3px' }}>
-                                                                                <button onClick={() => { setEditingReviewId(rev.id); setEditReviewText(rev.content); }} style={editBtnStyle}>수정</button>
+                                                                            <div style={{ display: 'flex', gap: '3px', flexShrink: 0 }}>
+                                                                                <button onClick={() => { setEditingReviewId(rev.id); setEditReviewText(rev.content); setEditReviewRating(rev.rating); setEditReviewFile(null); }} style={editBtnStyle}>수정</button>
                                                                                 <button onClick={() => handleReviewDelete(rev.id, pId)} style={delBtnStyle}>삭제</button>
                                                                             </div>
                                                                         )}
@@ -256,11 +291,11 @@ const scrollAreaStyle = { maxHeight: '400px', overflowY: 'auto', marginBottom: '
 const itemBoxStyle = { borderBottom: '1px solid #f0f0f0', padding: '15px 0' };
 const itemInfoStyle = { display: 'flex', justifyContent: 'space-between', alignItems: 'center' };
 const reviewSectionStyle = { marginTop: '10px', padding: '10px', background: '#f9f9f9', borderRadius: '8px' };
-const inputGroupStyle = { display: 'flex', gap: '5px', marginBottom: '10px' };
+const inputGroupStyle = { display: 'flex', gap: '5px', marginBottom: '8px' };
 const inputStyle = { flex: 1, padding: '5px', borderRadius: '4px', border: '1px solid #ddd' };
 const submitBtnStyle = { padding: '5px 10px', background: '#28a745', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer' };
 const reviewListStyle = { fontSize: '13px', display: 'grid', gap: '5px' };
-const reviewItemStyle = { display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#fff', padding: '5px', borderRadius: '4px', border: '1px solid #eee' };
+const reviewItemStyle = { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', background: '#fff', padding: '8px', borderRadius: '4px', border: '1px solid #eee' };
 const delBtnStyle = { background: '#ff4d4f', color: '#fff', border: 'none', padding: '2px 6px', borderRadius: '3px', fontSize: '11px', cursor: 'pointer' };
 const editBtnStyle = { background: '#ffc107', color: '#000', border: 'none', padding: '2px 6px', borderRadius: '3px', fontSize: '11px', cursor: 'pointer' };
 const modalFooterStyle = { display: 'flex', flexDirection: 'column', gap: '15px', borderTop: '1px solid #eee', paddingTop: '15px' };

@@ -61,10 +61,10 @@ public class ReviewController {
         String username = authentication.getName();
 
         String content = (String) payload.get("content");
-
         int rating = Integer.parseInt(payload.get("rating").toString());
+        String imageUrl = (String) payload.get("imageUrl");
 
-        reviewService.updateReview(reviewId, username, content, rating);
+        reviewService.updateReview(reviewId, username, content, rating, imageUrl);
         return ResponseEntity.ok().body("리뷰가 수정되었습니다.");
     }
 }

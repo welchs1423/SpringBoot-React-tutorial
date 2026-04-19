@@ -22,12 +22,15 @@ public class Review {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id")
-    private User user; // 작성자
+    private User user;
 
     @Column(columnDefinition = "TEXT")
-    private String content; // 리뷰 내용
+    private String content;
 
     private int rating;
+
+    @Column(length = 500)
+    private String imageUrl;
 
     private LocalDateTime createdAt = LocalDateTime.now();
 }

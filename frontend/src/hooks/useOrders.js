@@ -35,12 +35,26 @@ export function useOrders(token, refreshFlag) {
         return apiClient.get(`/reviews/product/${productId}`);
     }, []);
 
-    const submitReview = useCallback(async (productId, content, rating) => {
-        await apiClient.post('/reviews', { productId, content, rating });
+    const submitReview = useCallback(async (productId, content, rating, file) => {
+        let imageUrl = '';
+        if (file) {
+            const fd = new FormData();
+            fd.append('file', file);
+            const result = await apiClient.upload('/files/upload', fd);
+            imageUrl = result.imageUrl ?? '';
+        }
+        await apiClient.post('/reviews', { productId, content, rating, imageUrl });
     }, []);
 
-    const updateReview = useCallback(async (reviewId, content, rating) => {
-        await apiClient.put(`/reviews/${reviewId}`, { content, rating });
+    const updateReview = useCallback(async (reviewId, content, rating, file, existingImageUrl) => {
+        let imageUrl = existingImageUrl ?? '';
+        if (file) {
+            const fd = new FormData();
+            fd.append('file', file);
+            const result = await apiClient.upload('/files/upload', fd);
+            imageUrl = result.imageUrl ?? '';
+        }
+        await apiClient.put(`/reviews/${reviewId}`, { content, rating, imageUrl });
     }, []);
 
     const deleteReview = useCallback(async (reviewId) => {

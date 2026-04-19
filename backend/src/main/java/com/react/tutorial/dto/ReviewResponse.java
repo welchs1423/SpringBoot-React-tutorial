@@ -9,11 +9,13 @@ public class ReviewResponse {
     private String content;
     private String username;
     private int rating;
+    private String imageUrl;
 
     public ReviewResponse(Review review) {
         this.id = review.getId();
         this.content = review.getContent();
         this.username = review.getUser().getUsername();
         this.rating = review.getRating();
+        this.imageUrl = review.getImageUrl();
     }
 }

@@ -13,14 +13,14 @@ import java.io.IOException;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/api/upload")
+@RequestMapping("/api/files")
 @RequiredArgsConstructor
-public class UploadController {
+public class FileUploadController {
 
     private final FileUploadService fileUploadService;
 
-    @PostMapping
-    public ResponseEntity<?> uploadImage(@RequestParam("file") MultipartFile file) {
+    @PostMapping("/upload")
+    public ResponseEntity<?> uploadFile(@RequestParam("file") MultipartFile file) {
         try {
             String imageUrl = fileUploadService.upload(file);
             return ResponseEntity.ok(Map.of("imageUrl", imageUrl));

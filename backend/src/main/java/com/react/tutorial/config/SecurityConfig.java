@@ -61,6 +61,7 @@ public class SecurityConfig {
                 "/api/auth/login",
                 "/api/auth/register",
                 "/api/upload",
+                "/api/files/upload",
                 "/uploads/**",
                 "/oauth2/**",
                 "/login/oauth2/**"
@@ -85,7 +86,7 @@ public class SecurityConfig {
                 .formLogin(formLogin -> formLogin.disable())
 
                 .authorizeHttpRequests(authorize -> authorize
-                        .requestMatchers(HttpMethod.POST, "/api/auth/**", "/api/upload").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/auth/**", "/api/upload", "/api/files/upload").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/auth/**", "/public/**", "/uploads/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/products", "/api/products/*", "/api/reviews/**").permitAll()
                         .requestMatchers("/oauth2/**", "/login/oauth2/**").permitAll()

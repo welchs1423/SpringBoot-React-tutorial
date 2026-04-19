@@ -39,6 +39,7 @@ public class ReviewService {
         review.setProduct(product);
         review.setContent(request.getContent());
         review.setRating(request.getRating());
+        review.setImageUrl(request.getImageUrl());
 
         reviewRepository.save(review);
     }
@@ -62,7 +63,7 @@ public class ReviewService {
 
     @Transactional
     @SuppressWarnings("null")
-    public void updateReview(Long reviewId, String username, String content, int rating){
+    public void updateReview(Long reviewId, String username, String content, int rating, String imageUrl){
         Review review = reviewRepository.findById(reviewId)
                 .orElseThrow(() -> new RuntimeException("리뷰가 존재하지 않습니다."));
 
@@ -72,5 +73,8 @@ public class ReviewService {
 
         review.setContent(content);
         review.setRating(rating);
+        if (imageUrl != null && !imageUrl.isBlank()) {
+            review.setImageUrl(imageUrl);
+        }
     }
 }
