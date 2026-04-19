@@ -7,15 +7,26 @@ import AdminDashboard from './AdminDashboard';
 import ProductFilter from './ProductFilter';
 import { useAuth } from './hooks/useAuth';
 import { useProducts } from './hooks/useProducts';
+import { useWishlist } from './hooks/useWishlist';
 import { apiClient } from './api/apiClient';
 import './App.css';
 
 const INITIAL_FILTERS = { keyword: '', category: '', priceMin: '', priceMax: '', sort: 'latest', page: 0 };
 const PAGE_SIZE = 9;
+const LOCAL_CART_KEY = 'local_cart';
+
+function getLocalCart() {
+    try {
+        return JSON.parse(localStorage.getItem(LOCAL_CART_KEY) ?? '[]');
+    } catch {
+        return [];
+    }
+}
 
 function App() {
     const { token, role, username, isLoggedIn, login, register, logout } = useAuth();
     const { searchProducts } = useProducts();
+    const { wishlistedIds, wishlistItems, fetchWishlist, toggleWishlist } = useWishlist(isLoggedIn);
     const [view, setView] = useState('main');
     const [cartMessage, setCartMessage] = useState(null);
     const [cartUpdateFlag, setCartUpdateFlag] = useState(0);
@@ -30,6 +41,10 @@ function App() {
     const [refreshTrigger, setRefreshTrigger] = useState(0);
 
     const debounceTimer = useRef(null);
+
+    useEffect(() => {
+        fetchWishlist();
+    }, [fetchWishlist]);
 
     useEffect(() => {
         clearTimeout(debounceTimer.current);
@@ -75,9 +90,34 @@ function App() {
         setView('main');
     }, [logout]);
 
+    // 로그인 후 로컬 장바구니 DB 동기화
+    const handleLogin = useCallback(async (credentials) => {
+        const data = await login(credentials);
+        const localCart = getLocalCart();
+        if (localCart.length > 0) {
+            try {
+                await apiClient.post('/cart/sync', { items: localCart });
+                localStorage.removeItem(LOCAL_CART_KEY);
+                setCartUpdateFlag(f => f + 1);
+            } catch {
+                // sync 실패해도 로그인 처리 계속
+            }
+        }
+        await fetchWishlist();
+        return data;
+    }, [login, fetchWishlist]);
+
     const handleAddToCart = useCallback(async (productId) => {
         if (!isLoggedIn) {
-            setCartMessage({ type: 'error', text: '로그인이 필요합니다.' });
+            const localCart = getLocalCart();
+            const existing = localCart.find(item => item.productId === productId);
+            if (existing) {
+                existing.quantity += 1;
+            } else {
+                localCart.push({ productId, quantity: 1 });
+            }
+            localStorage.setItem(LOCAL_CART_KEY, JSON.stringify(localCart));
+            setCartMessage({ type: 'success', text: '장바구니에 담겼습니다. (로그인 시 자동 동기화)' });
             setTimeout(() => setCartMessage(null), 3000);
             return;
         }
@@ -90,6 +130,15 @@ function App() {
         }
         setTimeout(() => setCartMessage(null), 3000);
     }, [isLoggedIn]);
+
+    const handleToggleWishlist = useCallback(async (productId) => {
+        if (!isLoggedIn) {
+            setCartMessage({ type: 'error', text: '찜하기는 로그인이 필요합니다.' });
+            setTimeout(() => setCartMessage(null), 3000);
+            return;
+        }
+        await toggleWishlist(productId);
+    }, [isLoggedIn, toggleWishlist]);
 
     const handleToggleReviews = useCallback(async (productId) => {
         const pid = String(productId);
@@ -130,6 +179,7 @@ function App() {
                 <nav style={{ display: 'flex', gap: '10px' }}>
                     {navBtn('main', '홈 (쇼핑)')}
                     {isLoggedIn && navBtn('orders', '내 주문/리뷰')}
+                    {isLoggedIn && navBtn('wishlist', `찜 목록${wishlistItems.length > 0 ? ` (${wishlistItems.length})` : ''}`)}
                     {isLoggedIn && navBtn('admin', '상품 관리', true)}
                     {navBtn('checkout', '결제 테스트')}
                 </nav>
@@ -139,7 +189,7 @@ function App() {
                 isLoggedIn={isLoggedIn}
                 role={role}
                 username={username}
-                onLogin={login}
+                onLogin={handleLogin}
                 onRegister={register}
                 onLogout={handleLogout}
             />
@@ -150,6 +200,45 @@ function App() {
 
             {view === 'orders' && (
                 <OrderList token={token} updateFlag={cartUpdateFlag} currentUserName={username} />
+            )}
+
+            {view === 'wishlist' && (
+                <div>
+                    <h3 style={{ marginBottom: '16px' }}>나의 찜 목록</h3>
+                    {wishlistItems.length === 0 ? (
+                        <p style={{ color: '#999', textAlign: 'center', padding: '40px' }}>찜한 상품이 없습니다.</p>
+                    ) : (
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: '16px' }}>
+                            {wishlistItems.map(item => (
+                                <div key={item.productId} style={{ border: '1px solid #ddd', padding: '16px', borderRadius: '12px', background: '#fff' }}>
+                                    {item.imageUrl && (
+                                        <img
+                                            src={item.imageUrl}
+                                            alt={item.productName}
+                                            style={{ width: '100%', height: '160px', objectFit: 'cover', borderRadius: '8px', marginBottom: '8px' }}
+                                        />
+                                    )}
+                                    <h4 style={{ margin: '0 0 4px 0' }}>{item.productName}</h4>
+                                    <p style={{ margin: '0 0 10px 0', color: '#333' }}>{item.price.toLocaleString()}원</p>
+                                    <div style={{ display: 'flex', gap: '8px' }}>
+                                        <button
+                                            onClick={() => handleAddToCart(item.productId)}
+                                            style={{ flex: 1, padding: '8px', backgroundColor: '#007bff', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer' }}
+                                        >
+                                            담기
+                                        </button>
+                                        <button
+                                            onClick={() => handleToggleWishlist(item.productId)}
+                                            style={{ padding: '8px 12px', backgroundColor: '#ff4757', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer' }}
+                                        >
+                                            찜 해제
+                                        </button>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
             )}
 
             {view === 'checkout' && <CheckoutTest />}
@@ -181,7 +270,19 @@ function App() {
                         <>
                             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '20px', marginBottom: '24px' }}>
                                 {products.map(product => (
-                                    <div key={`prod-${product.id}`} className="product-card" style={{ border: '1px solid #ddd', padding: '20px', borderRadius: '12px', background: '#fff', color: '#333' }}>
+                                    <div key={`prod-${product.id}`} className="product-card" style={{ border: '1px solid #ddd', padding: '20px', borderRadius: '12px', background: '#fff', color: '#333', position: 'relative' }}>
+                                        <button
+                                            onClick={() => handleToggleWishlist(product.id)}
+                                            style={{
+                                                position: 'absolute', top: '12px', right: '12px',
+                                                background: 'none', border: 'none', cursor: 'pointer',
+                                                fontSize: '22px', lineHeight: 1, zIndex: 1,
+                                                color: wishlistedIds.has(product.id) ? '#e74c3c' : '#ccc',
+                                            }}
+                                            title={wishlistedIds.has(product.id) ? '찜 해제' : '찜하기'}
+                                        >
+                                            {wishlistedIds.has(product.id) ? '♥' : '♡'}
+                                        </button>
                                         {product.imageUrl ? (
                                             <img
                                                 src={product.imageUrl}

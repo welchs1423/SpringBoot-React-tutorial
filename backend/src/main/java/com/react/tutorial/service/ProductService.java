@@ -81,7 +81,8 @@ public class ProductService {
             int total = sorted.size();
             int from = Math.min(page * size, total);
             int to = Math.min(from + size, total);
-            return new PageImpl<>(sorted.subList(from, to), PageRequest.of(page, size), total);
+            List<ProductDTO> subList = new java.util.ArrayList<>(sorted.subList(from, to));
+            return new PageImpl<>(subList, PageRequest.of(page, size), total);
         }
 
         Sort sortObj = switch (sort) {
