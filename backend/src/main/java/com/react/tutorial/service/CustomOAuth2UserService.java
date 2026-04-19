@@ -10,6 +10,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Map;
+import java.util.Objects;
 
 @Service
 public class CustomOAuth2UserService extends DefaultOAuth2UserService {
@@ -22,7 +23,7 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
 
     @Override
     @Transactional
-    @SuppressWarnings("unchecked")
+    @SuppressWarnings({"unchecked", "null"})
     public OAuth2User loadUser(OAuth2UserRequest userRequest) throws OAuth2AuthenticationException {
         OAuth2User oAuth2User = super.loadUser(userRequest);
 
@@ -50,17 +51,16 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
         User user = userRepository.findByProviderAndProviderId(provider, finalProviderId)
                 .orElseGet(() -> {
                     String username = provider.toLowerCase() + "_" + finalProviderId;
+                    User newUser = User.builder()
+                                .username(username)
+                                .password(null)
+                                .role("ROLE_USER")
+                                .email(finalEmail)
+                                .provider(provider)
+                                .providerId(finalProviderId)
+                                .build();
                     return userRepository.findByUsername(username)
-                            .orElseGet(() -> userRepository.save(
-                                    User.builder()
-                                            .username(username)
-                                            .password(null)
-                                            .role("ROLE_USER")
-                                            .email(finalEmail)
-                                            .provider(provider)
-                                            .providerId(finalProviderId)
-                                            .build()
-                            ));
+                            .orElseGet(() -> Objects.requireNonNull(userRepository.save(newUser)));
                 });
 
         user.updateOAuthInfo(finalEmail);
