@@ -24,6 +24,7 @@ Spring Boot와 React를 이용한 풀스택 쇼핑몰 구축 및 실무 환경 �
 ### [2026-04-20]
 
 * [Completed] 장바구니 DB 동기화 및 마이페이지 찜하기(Wishlist) 기능 연동
+* [Completed] 대규모 트래픽 대비 Redis 기반 상품 조회 캐싱 및 장바구니 메모리 최적화
 
 ---
 

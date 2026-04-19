@@ -6,6 +6,8 @@ import com.react.tutorial.entity.Review;
 import com.react.tutorial.repository.ProductRepository;
 import com.react.tutorial.specification.ProductSpecification;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.*;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
@@ -51,6 +53,7 @@ public class ProductService {
                 .build();
     }
 
+    @CacheEvict(value = "products", allEntries = true)
     @Transactional
     public ProductDTO create(ProductDTO dto) {
         Product product = toEntity(dto);
@@ -59,6 +62,7 @@ public class ProductService {
         return toDTO(savedProduct);
     }
 
+    @Cacheable(value = "products", key = "'all'")
     @Transactional(readOnly = true)
     public List<ProductDTO> findAll() {
         return productRepository.findAll().stream()
@@ -102,6 +106,7 @@ public class ProductService {
         return toDTO(product);
     }
 
+    @CacheEvict(value = "products", allEntries = true)
     @Transactional
     @SuppressWarnings("null")
     public ProductDTO update(Long id, ProductDTO dto) {
@@ -123,6 +128,7 @@ public class ProductService {
         return toDTO(updatedProduct);
     }
 
+    @CacheEvict(value = "products", allEntries = true)
     @Transactional
     @SuppressWarnings("null")
     public void delete(Long id) {

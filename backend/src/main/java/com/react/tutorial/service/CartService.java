@@ -1,129 +1,163 @@
 package com.react.tutorial.service;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.react.tutorial.dto.CartItemDTO;
 import com.react.tutorial.dto.CartSyncRequestDTO;
-import com.react.tutorial.entity.CartItem;
 import com.react.tutorial.entity.Product;
-import com.react.tutorial.entity.User;
-import com.react.tutorial.repository.CartItemRepository;
 import com.react.tutorial.repository.ProductRepository;
 import com.react.tutorial.repository.UserRepository;
+import org.springframework.data.redis.core.HashOperations;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Duration;
+import java.util.ArrayList;
 import java.util.List;
-import java.util.stream.Collectors;
+import java.util.Map;
+import java.util.Objects;
 
+@SuppressWarnings("null")
 @Service
-@Transactional
 public class CartService {
+
+    private static final String CART_KEY_PREFIX = "cart:";
+    private static final Duration CART_TTL = Duration.ofDays(7);
 
     private final UserRepository userRepository;
     private final ProductRepository productRepository;
-    private final CartItemRepository cartItemRepository;
+    private final StringRedisTemplate stringRedisTemplate;
+    private final ObjectMapper objectMapper;
 
-    public CartService(UserRepository userRepository, ProductRepository productRepository, CartItemRepository cartItemRepository) {
+    public CartService(UserRepository userRepository, ProductRepository productRepository,
+                       StringRedisTemplate stringRedisTemplate, ObjectMapper objectMapper) {
         this.userRepository = userRepository;
         this.productRepository = productRepository;
-        this.cartItemRepository = cartItemRepository;
+        this.stringRedisTemplate = stringRedisTemplate;
+        this.objectMapper = objectMapper;
     }
 
-    private User findUserByUsername(String username) {
-        return userRepository.findByUsername(username)
+    private String cartKey(String username) {
+        return CART_KEY_PREFIX + username;
+    }
+
+    private void verifyUser(String username) {
+        userRepository.findByUsername(username)
                 .orElseThrow(() -> new IllegalArgumentException("사용자(" + username + ")를 찾을 수 없습니다."));
     }
 
-    // 로그인 시 로컬 장바구니를 DB에 병합 (같은 상품이면 수량 합산)
+    private HashOperations<String, String, String> hashOps() {
+        return stringRedisTemplate.opsForHash();
+    }
+
+    private String serialize(CartItemDTO dto) {
+        try {
+            return objectMapper.writeValueAsString(dto);
+        } catch (JsonProcessingException e) {
+            throw new IllegalStateException("장바구니 직렬화 실패", e);
+        }
+    }
+
+    private CartItemDTO deserialize(String json) {
+        try {
+            return objectMapper.readValue(json, CartItemDTO.class);
+        } catch (JsonProcessingException e) {
+            throw new IllegalStateException("장바구니 역직렬화 실패", e);
+        }
+    }
+
+    private CartItemDTO buildItem(Product product, int quantity) {
+        return CartItemDTO.builder()
+                .id(product.getId())
+                .productId(product.getId())
+                .productName(product.getName())
+                .productPrice(product.getPrice())
+                .quantity(quantity)
+                .build();
+    }
+
     public List<CartItemDTO> syncCart(String username, CartSyncRequestDTO request) {
-        User user = findUserByUsername(username);
+        verifyUser(username);
 
         if (request.getItems() != null) {
+            String key = cartKey(username);
             for (CartSyncRequestDTO.CartSyncItemDTO syncItem : request.getItems()) {
-                productRepository.findById(syncItem.getProductId()).ifPresent(product -> {
-                    CartItem existing = cartItemRepository.findByUserAndProduct(user, product)
-                            .orElseGet(() -> CartItem.builder()
-                                    .user(user)
-                                    .product(product)
-                                    .quantity(0)
-                                    .build());
-                    existing.setQuantity(existing.getQuantity() + syncItem.getQuantity());
-                    cartItemRepository.save(existing);
+                Long productId = syncItem.getProductId();
+                if (productId == null) continue;
+
+                productRepository.findById(productId).ifPresent(product -> {
+                    String field = String.valueOf(product.getId());
+                    String existing = hashOps().get(key, field);
+                    int currentQty = existing != null ? deserialize(existing).getQuantity() : 0;
+                    hashOps().put(key, field, serialize(buildItem(product, currentQty + syncItem.getQuantity())));
                 });
             }
+            stringRedisTemplate.expire(key, CART_TTL);
         }
 
         return getMyCart(username);
     }
 
-    @SuppressWarnings("null")
-    public void addItemToCart(String username, CartItemDTO cartItemDTO) {
-        User user = findUserByUsername(username);
-        Product product = productRepository.findById(cartItemDTO.getProductId())
-                .orElseThrow(() -> new IllegalArgumentException("상품 ID가 유효하지 않습니다: " + cartItemDTO.getProductId()));
+    public void addItemToCart(String username, CartItemDTO dto) {
+        verifyUser(username);
 
-        CartItem cartItem = cartItemRepository.findByUserAndProduct(user, product)
-                .orElseGet(() -> CartItem.builder()
-                        .user(user)
-                        .product(product)
-                        .quantity(0)
-                        .build());
+        Long productId = Objects.requireNonNull(dto.getProductId(), "상품 ID는 필수입니다.");
+        Product product = productRepository.findById(productId)
+                .orElseThrow(() -> new IllegalArgumentException("상품 ID가 유효하지 않습니다: " + productId));
 
-        cartItem.setQuantity(cartItem.getQuantity() + cartItemDTO.getQuantity());
-        cartItemRepository.save(cartItem);
+        String key = cartKey(username);
+        String field = String.valueOf(productId);
+        String existing = hashOps().get(key, field);
+        int currentQty = existing != null ? deserialize(existing).getQuantity() : 0;
+
+        hashOps().put(key, field, serialize(buildItem(product, currentQty + dto.getQuantity())));
+        stringRedisTemplate.expire(key, CART_TTL);
     }
 
-    @Transactional(readOnly = true)
     public List<CartItemDTO> getMyCart(String username) {
-        User user = findUserByUsername(username);
-        List<CartItem> items = cartItemRepository.findAllByUser(user);
+        verifyUser(username);
 
-        return items.stream()
-                .map(item -> CartItemDTO.builder()
-                        .id(item.getId())
-                        .productId(item.getProduct().getId())
-                        .productName(item.getProduct().getName())
-                        .productPrice(item.getProduct().getPrice())
-                        .quantity(item.getQuantity())
-                        .build())
-                .collect(Collectors.toList());
+        Map<String, String> entries = hashOps().entries(cartKey(username));
+        List<CartItemDTO> result = new ArrayList<>();
+        for (String json : entries.values()) {
+            result.add(deserialize(json));
+        }
+        return result;
     }
 
-    @SuppressWarnings("null")
     public void updateCartItemQuantity(String username, Long cartItemId, int newQuantity) {
-        User user = findUserByUsername(username);
+        verifyUser(username);
 
-        CartItem item = cartItemRepository.findById(cartItemId)
-                .orElseThrow(() -> new IllegalArgumentException("장바구니 아이템을 찾을 수 없습니다."));
-
-        if (!item.getUser().getId().equals(user.getId())) {
-            throw new SecurityException("자신의 장바구니 아이템만 수정할 수 있습니다.");
+        String key = cartKey(username);
+        String field = String.valueOf(cartItemId);
+        String existing = hashOps().get(key, field);
+        if (existing == null) {
+            throw new IllegalArgumentException("장바구니 아이템을 찾을 수 없습니다.");
         }
 
         if (newQuantity < 1) {
             removeCartItem(username, cartItemId);
         } else {
-            item.setQuantity(newQuantity);
-            cartItemRepository.save(item);
+            CartItemDTO current = deserialize(existing);
+            CartItemDTO updated = CartItemDTO.builder()
+                    .id(current.getId())
+                    .productId(current.getProductId())
+                    .productName(current.getProductName())
+                    .productPrice(current.getProductPrice())
+                    .quantity(newQuantity)
+                    .build();
+            hashOps().put(key, field, serialize(updated));
+            stringRedisTemplate.expire(key, CART_TTL);
         }
     }
 
-    @SuppressWarnings("null")
     public void removeCartItem(String username, Long cartItemId) {
-        User user = findUserByUsername(username);
-
-        CartItem item = cartItemRepository.findById(cartItemId)
-                .orElseThrow(() -> new IllegalArgumentException("장바구니 아이템을 찾을 수 없습니다."));
-
-        if (!item.getUser().getId().equals(user.getId())) {
-            throw new SecurityException("자신의 장바구니 아이템만 삭제할 수 있습니다.");
-        }
-
-        cartItemRepository.delete(item);
+        verifyUser(username);
+        hashOps().delete(cartKey(username), String.valueOf(cartItemId));
     }
 
     public void clearCart(String username) {
-        User user = findUserByUsername(username);
-        List<CartItem> items = cartItemRepository.findAllByUser(user);
-        cartItemRepository.deleteAll(items);
+        verifyUser(username);
+        stringRedisTemplate.delete(cartKey(username));
     }
 }

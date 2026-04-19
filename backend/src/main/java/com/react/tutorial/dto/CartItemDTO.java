@@ -4,11 +4,16 @@ import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
 
+import java.io.Serializable;
+
 @Getter
+@Setter
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class CartItemDTO {
+public class CartItemDTO implements Serializable {
+
+    private static final long serialVersionUID = 1L;
 
     private Long id;
 
