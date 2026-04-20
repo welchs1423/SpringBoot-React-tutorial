@@ -26,3 +26,4 @@ uploads/
 # backend/src/main/resources/ 내의 설정 파일 제외
 backend/src/main/resources/application.properties
 CLAUDE.md
+.claude/settings.json

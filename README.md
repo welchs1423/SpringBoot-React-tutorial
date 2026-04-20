@@ -27,6 +27,7 @@ Spring Boot와 React를 이용한 풀스택 쇼핑몰 구축 및 실무 환경 �
 * [Completed] 대규모 트래픽 대비 Redis 기반 상품 조회 캐싱 및 장바구니 메모리 최적화
 * [Completed] Spring Event 기반 비동기 주문 알림 시스템 및 TDD 검증 완료
 * [Completed] Server-Sent Events(SSE) 기반 실시간 웹 푸시 알림 구현 및 단위 테스트 완료
+* [Completed] 관리자 통계 대시보드 API 및 차트(Chart) UI 연동 완료 (TDD 검증)
 
 ---
 

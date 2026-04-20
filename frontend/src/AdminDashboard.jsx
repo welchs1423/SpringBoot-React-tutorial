@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useProducts } from './hooks/useProducts';
 import { useOrders } from './hooks/useOrders';
 import { apiClient } from './api/apiClient';
+import StatisticsDashboard from './StatisticsDashboard';
 
 const CATEGORIES = ['', '전자제품', '의류', '식품', '스포츠/레저', '뷰티', '도서', '가구/인테리어', '기타'];
 const EMPTY_FORM = { name: '', price: 0, stockQuantity: 0, description: '', imageUrl: '', category: '' };
@@ -181,6 +182,7 @@ const AdminDashboard = ({ role, onProductChanged }) => {
             <div style={{ display: 'flex', gap: '8px', marginBottom: '20px' }}>
                 <button onClick={() => setActiveTab('products')} style={activeTab === 'products' ? activeTabBtnStyle : tabBtnStyle}>상품 관리</button>
                 <button onClick={() => setActiveTab('orders')} style={activeTab === 'orders' ? activeTabBtnStyle : tabBtnStyle}>주문 관리</button>
+                <button onClick={() => setActiveTab('statistics')} style={activeTab === 'statistics' ? activeTabBtnStyle : tabBtnStyle}>매출 통계</button>
             </div>
 
             {activeTab === 'orders' && (
@@ -213,6 +215,13 @@ const AdminDashboard = ({ role, onProductChanged }) => {
                             ))}
                         </div>
                     )}
+                </div>
+            )}
+
+            {activeTab === 'statistics' && (
+                <div>
+                    <h3 style={{ marginBottom: '15px' }}>매출 통계 대시보드</h3>
+                    <StatisticsDashboard />
                 </div>
             )}
 
