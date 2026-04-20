@@ -2,6 +2,29 @@
 
 Spring Boot와 React를 이용한 풀스택 쇼핑몰 구축 및 실무 환경 설정 튜토리얼입니다.
 
+## 🏛️ 시스템 아키텍처 및 프로젝트 요약
+
+### 1. 프로젝트 개요
+본 프로젝트는 Spring Boot와 React를 기반으로 구축된 현대적인 풀스택 쇼핑몰 시스템입니다. 대규모 트래픽과 데이터 정합성을 고려한 설계가 반영되어 있으며, 실제 결제 시스템(토스페이먼츠) 연동부터 실시간 알림, 통계 대시보드까지 이커머스의 핵심 비즈니스 로직을 포함하고 있습니다.
+
+### 2. 기술 스택 (Tech Stack)
+- **Frontend**: React 19, Vite, Recharts (통계 시각화), Vanilla CSS
+- **Backend**: Spring Boot 3.4, Java 17, Spring Security, JWT, OAuth2, Spring Data JPA
+- **Storage**: MySQL 8.0 (Persistence), Redis (Caching)
+- **DevOps**: Docker, Docker Compose, GitHub Actions (CI/CD), Slack/Discord Webhook (Monitoring)
+
+### 3. 시스템 아키텍처 플로우
+- **인증 및 인가**: JWT 기반 Stateless 인증 체계를 사용하며, OAuth2를 통한 소셜 로그인을 지원합니다.
+- **주문 및 재고**: 결제 시 발생할 수 있는 동시성 문제를 해결하기 위해 **비관적 락(Pessimistic Lock)**을 적용하여 재고 데이터의 무결성을 보장합니다.
+- **캐싱 전략**: 빈번한 상품 조회 및 장바구니 데이터를 **Redis**에 캐싱하여 DB 부하를 줄이고 응답 속도를 개선했습니다.
+- **비동기 알림**: 주문 완료 등 주요 이벤트 발생 시 **Spring Event**를 통해 비동기적으로 처리하며, **SSE(Server-Sent Events)**로 사용자에게 실시간 알림을 전송하고 외부 메신저(Slack/Discord) 웹훅을 통해 시스템 로그를 모니터링합니다.
+
+### 4. 배포 파이프라인 (CI/CD)
+- **CI**: GitHub Actions를 통해 코드 푸시 시마다 자동 빌드 및 테스트를 수행하여 품질을 검증합니다.
+- **CD**: CI 성공 시 Docker 이미지를 빌드하여 Docker Hub에 푸시하고, 원격 서버에 SSH로 접속하여 `docker-compose`를 통해 무중단 배포를 수행합니다.
+
+---
+
 ## 기술 스택
 
 | 구분 | 기술 |
@@ -23,6 +46,7 @@ Spring Boot와 React를 이용한 풀스택 쇼핑몰 구축 및 실무 환경 �
 
 ### [2026-04-21]
 
+* [완료] 프로젝트 최종 아카이빙 및 시스템 아키텍처 문서화 적용
 * [Completed] GitHub Actions CD 연동 및 클라우드 서버 자동 배포 파이프라인 구축
 * [Completed] 테스트 코드 정적 분석 경고 해소 — `OrderEventTest`, `StatisticsServiceTest`에 `@SuppressWarnings("null")` 적용
 * [Completed] 글로벌 예외 처리 및 Slack/Discord 실시간 에러 모니터링(Webhook) 구축 완료
