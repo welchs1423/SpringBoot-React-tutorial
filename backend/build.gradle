@@ -9,7 +9,10 @@ version = '0.0.1-SNAPSHOT'
 description = 'Demo project for Spring Boot & React'
 
 // build 디렉토리를 ASCII 경로로 이동 (한글 경로에서 Gradle @argfile 인코딩 문제 방지)
-layout.buildDirectory = file("C:/gradle-builds/spring-react-tutorial")
+// Docker 환경(Linux)에서는 기본 build 디렉토리 사용
+if (System.getenv("DOCKER_BUILD") == null) {
+    layout.buildDirectory = file("C:/gradle-builds/spring-react-tutorial")
+}
 
 java {
 	toolchain {
