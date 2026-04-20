@@ -1,0 +1,58 @@
+name: CD
+
+on:
+  workflow_run:
+    workflows: [ "CI" ]
+    branches: [ main ]
+    types: [ completed ]
+
+jobs:
+  deploy:
+    name: 클라우드 서버 배포
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # 백엔드 Docker 이미지 빌드 및 푸시
+      - name: Docker Hub 로그인
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: 백엔드 이미지 빌드 및 푸시
+        uses: docker/build-push-action@v5
+        with:
+          context: ./backend
+          push: true
+          tags: ${{ secrets.DOCKER_USERNAME }}/spring-react-tutorial-backend:latest
+
+      # 프론트엔드 Docker 이미지 빌드 및 푸시
+      - name: 프론트엔드 이미지 빌드 및 푸시
+        uses: docker/build-push-action@v5
+        with:
+          context: ./frontend
+          push: true
+          tags: ${{ secrets.DOCKER_USERNAME }}/spring-react-tutorial-frontend:latest
+
+      # SSH로 원격 서버 접속 후 최신 이미지 Pull 및 재배포
+      - name: SSH 원격 배포
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: ${{ secrets.SSH_PORT }}
+          script: |
+            cd /home/${{ secrets.SSH_USER }}/spring-react-tutorial
+
+            # 최신 이미지 Pull
+            docker-compose pull
+
+            # 무중단 재시작 (기존 컨테이너 교체)
+            docker-compose up -d --remove-orphans
+
+            # 미사용 이미지 정리
+            docker image prune -f

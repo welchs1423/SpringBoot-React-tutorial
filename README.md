@@ -21,6 +21,12 @@ Spring Boot와 React를 이용한 풀스택 쇼핑몰 구축 및 실무 환경 �
 
 ## 업데이트 기록
 
+### [2026-04-21]
+
+* [Completed] GitHub Actions CD 연동 및 클라우드 서버 자동 배포 파이프라인 구축
+
+---
+
 ### [2026-04-20]
 
 * [Completed] Docker 및 Docker Compose를 활용한 전체 서비스 컨테이너화 구축 완료
