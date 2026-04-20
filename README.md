@@ -24,6 +24,7 @@ Spring Boot와 React를 이용한 풀스택 쇼핑몰 구축 및 실무 환경 �
 ### [2026-04-21]
 
 * [Completed] GitHub Actions CD 연동 및 클라우드 서버 자동 배포 파이프라인 구축
+* [Completed] 테스트 코드 정적 분석 경고 해소 — `OrderEventTest`, `StatisticsServiceTest`에 `@SuppressWarnings("null")` 적용
 
 ---
 
