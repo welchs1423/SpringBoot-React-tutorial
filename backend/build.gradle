@@ -8,6 +8,9 @@ group = 'com.react'
 version = '0.0.1-SNAPSHOT'
 description = 'Demo project for Spring Boot & React'
 
+// build 디렉토리를 ASCII 경로로 이동 (한글 경로에서 Gradle @argfile 인코딩 문제 방지)
+layout.buildDirectory = file("C:/gradle-builds/spring-react-tutorial")
+
 java {
 	toolchain {
 		languageVersion = JavaLanguageVersion.of(17)
@@ -54,6 +57,10 @@ dependencies {
 
 tasks.named('test') {
 	useJUnitPlatform()
+	javaLauncher = javaToolchains.launcherFor {
+		languageVersion = JavaLanguageVersion.of(17)
+		vendor = JvmVendorSpec.ORACLE
+	}
 }
 
 tasks.withType(JavaCompile) {
@@ -62,4 +69,5 @@ tasks.withType(JavaCompile) {
 
 test {
     enabled = true
+    jvmArgs '-Dsun.jnu.encoding=UTF-8', '-Dfile.encoding=UTF-8'
 }

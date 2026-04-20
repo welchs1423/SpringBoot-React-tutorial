@@ -61,11 +61,15 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         filterChain.doFilter(request, response);
     }
 
-    // HTTP 요청 헤더에서 JWT 토큰(Bearer ...)을 추출하는 유틸리티 메서드
     private String getJwtFromRequest(HttpServletRequest request) {
         String bearerToken = request.getHeader("Authorization");
         if (StringUtils.hasText(bearerToken) && bearerToken.startsWith("Bearer ")) {
             return bearerToken.substring(7).trim();
+        }
+        // EventSource는 헤더 설정 불가로 SSE 구독 시 쿼리 파라미터에서 토큰 추출
+        String paramToken = request.getParameter("token");
+        if (StringUtils.hasText(paramToken)) {
+            return paramToken.trim();
         }
         return null;
     }

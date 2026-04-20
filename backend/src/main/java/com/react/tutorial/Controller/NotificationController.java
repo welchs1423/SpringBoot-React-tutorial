@@ -1,15 +1,18 @@
 package com.react.tutorial.Controller;
 
+import com.react.tutorial.config.SseEmitterRegistry;
 import com.react.tutorial.dto.NotificationDTO;
 import com.react.tutorial.entity.Notification;
 import com.react.tutorial.entity.User;
 import com.react.tutorial.repository.NotificationRepository;
 import com.react.tutorial.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.util.List;
 import java.util.Map;
@@ -23,6 +26,13 @@ public class NotificationController {
 
     private final NotificationRepository notificationRepository;
     private final UserRepository userRepository;
+    private final SseEmitterRegistry sseEmitterRegistry;
+
+    @GetMapping(value = "/subscribe", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    public SseEmitter subscribe(@AuthenticationPrincipal UserDetails userDetails) {
+        User user = getUser(userDetails);
+        return sseEmitterRegistry.register(user.getUsername());
+    }
 
     @GetMapping
     public ResponseEntity<List<NotificationDTO>> getNotifications(

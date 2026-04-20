@@ -9,6 +9,8 @@ import { useAuth } from './hooks/useAuth';
 import { useProducts } from './hooks/useProducts';
 import { useWishlist } from './hooks/useWishlist';
 import { useNotifications } from './hooks/useNotifications';
+import { useSSE } from './hooks/useSSE';
+import { ToastNotification } from './components/ToastNotification';
 import { apiClient } from './api/apiClient';
 import './App.css';
 
@@ -28,8 +30,20 @@ function App() {
     const { token, role, username, isLoggedIn, login, register, logout } = useAuth();
     const { searchProducts } = useProducts();
     const { wishlistedIds, wishlistItems, fetchWishlist, toggleWishlist } = useWishlist(isLoggedIn);
-    const { notifications, unreadCount, open: notifOpen, setOpen: setNotifOpen, handleToggle: handleNotifToggle, markAllAsRead } = useNotifications(isLoggedIn);
+    const { notifications, unreadCount, open: notifOpen, setOpen: setNotifOpen, handleToggle: handleNotifToggle, markAllAsRead, fetchUnreadCount } = useNotifications(isLoggedIn);
+    const [toasts, setToasts] = useState([]);
     const [view, setView] = useState('main');
+
+    const handleSSENotification = useCallback((data) => {
+        setToasts(prev => [...prev, { id: Date.now(), ...data }]);
+        fetchUnreadCount();
+    }, [fetchUnreadCount]);
+
+    useSSE(isLoggedIn, handleSSENotification);
+
+    const removeToast = useCallback((id) => {
+        setToasts(prev => prev.filter(t => t.id !== id));
+    }, []);
     const [cartMessage, setCartMessage] = useState(null);
     const [cartUpdateFlag, setCartUpdateFlag] = useState(0);
     const [reviewPanelId, setReviewPanelId] = useState(null);
@@ -419,10 +433,12 @@ function App() {
             )}
 
             {cartMessage && (
-                <div style={{ position: 'fixed', bottom: '20px', right: '20px', padding: '15px 25px', backgroundColor: cartMessage.type === 'error' ? '#ff4d4d' : '#28a745', color: '#fff', borderRadius: '8px', zIndex: 9999 }}>
+                <div style={{ position: 'fixed', bottom: '20px', right: '20px', padding: '15px 25px', backgroundColor: cartMessage.type === 'error' ? '#ff4d4d' : '#28a745', color: '#fff', borderRadius: '8px', zIndex: 9998 }}>
                     {cartMessage.text}
                 </div>
             )}
+
+            <ToastNotification toasts={toasts} onRemove={removeToast} />
         </div>
     );
 }
